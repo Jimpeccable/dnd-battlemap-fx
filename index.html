@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>D&D Battlemap Effect Overlay</title>
+    <title>Advanced Battlemap Editor & Scaler</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* Set the font and ensure body fills the viewport */
+        /* Base Styling */
         body {
             font-family: 'Inter', sans-serif;
             min-height: 100vh;
-            background-color: #1f2937; /* Darker D&D theme */
+            background-color: #0f172a; /* Slate 900 */
             color: #f3f4f6;
             display: flex;
             flex-direction: column;
@@ -21,16 +21,24 @@
         .image-container {
             position: relative;
             max-width: 100%;
-            height: auto;
-            border-radius: 12px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            border-radius: 1rem;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
             overflow: hidden;
-            background-color: #374151;
-            margin-top: 2rem;
-            max-height: 80vh; 
+            background-color: #1e293b; /* Slate 800 */
+            margin-top: 1rem;
+            aspect-ratio: 4/3; /* Default aspect ratio */
+            width: 100%;
+            max-height: 75vh;
+        }
+        /* Mobile adjustment for image container */
+        @media (min-width: 768px) {
+            .image-container {
+                /* On desktop, allow the aspect ratio to be determined by the image */
+                aspect-ratio: auto;
+            }
         }
 
-        /* The base image */
+        /* The base image (will dictate the aspect ratio) */
         #base-image {
             display: block;
             width: 100%;
@@ -43,489 +51,1392 @@
             position: absolute;
             top: 0;
             left: 0;
-            pointer-events: all; 
+            pointer-events: all;
             cursor: crosshair;
-            opacity: 1; /* Full opacity for effects */
+            opacity: 1;
         }
 
-        /* Styling for the file input */
-        input[type="file"] {
-            display: none;
-        }
-
+        /* Styling for the file upload button */
         .custom-file-upload {
-            border: 2px dashed #93c5fd;
-            color: #3b82f6;
-            background-color: #eff6ff;
+            border: 2px dashed #4f46e5;
+            color: #818cf8;
+            background-color: #1f2937;
             padding: 1rem 2rem;
             cursor: pointer;
-            border-radius: 8px;
+            border-radius: 0.5rem;
             transition: all 0.2s ease;
             text-align: center;
             font-weight: 600;
         }
 
         .custom-file-upload:hover {
-            background-color: #dbeafe;
-            border-color: #60a5fa;
+            background-color: #111827;
+            border-color: #6366f1;
+        }
+        
+        /* Hidden file input */
+        #image-upload {
+            display: none;
         }
     </style>
 </head>
 <body class="p-4 sm:p-8">
 
-    <header class="text-center mb-6 w-full max-w-4xl">
-        <h1 class="text-3xl font-bold text-yellow-300 mb-2">D&D Battlemap Spell Effects</h1>
-        <!-- UPDATED: Added Jimpeccable credit -->
-        <p class="text-gray-400 mb-2">Effects inspired by <a href="https://www.patreon.com/Jimpeccable" target="_blank" class="text-blue-400 hover:text-blue-300 underline">Jimpeccable on Patreon</a>.</p>
-        <p class="text-gray-400">Upload your map and place spell/area effects in real-time. Use the controls below to select the effect type and size.</p>
+    <header class="text-center mb-6 w-full max-w-6xl">
+        <h1 class="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-teal-400 to-indigo-400">
+            Advanced Battlemap Manager
+        </h1>
+        <p class="text-gray-400 mt-2">Scale your map, place effects, and prepare for combat.</p>
+        <p class="text-sm text-gray-500 mt-1">
+            Created by <a href="https://www.patreon.com/Jimpeccable" target="_blank" class="text-purple-400 hover:text-purple-300 font-semibold underline">Jimpeccable (Patreon)</a>
+        </p>
     </header>
 
     <!-- Controls Panel -->
-    <div class="bg-gray-700 p-4 rounded-xl shadow-lg w-full max-w-4xl mb-6 flex flex-col md:flex-row flex-wrap justify-between items-center gap-4">
-        
-        <!-- File Upload -->
-        <label for="image-upload" class="custom-file-upload flex items-center gap-2 w-full md:w-auto">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
-            Upload Map (JPEG/PNG)
-        </label>
-        <input type="file" id="image-upload" accept="image/*">
+    <div class="bg-gray-800 p-6 rounded-2xl shadow-[0_0_50px_rgba(0,0,0,0.4)] w-full max-w-6xl mb-6 flex flex-col gap-6">
 
-        <!-- Effect Selector -->
-        <div class="flex flex-col w-full sm:w-1/2 md:w-auto flex-grow">
-            <label for="effect-type" class="text-gray-300 font-medium mb-1">Effect Type:</label>
-            <select id="effect-type" class="p-2 rounded bg-gray-600 border border-gray-500 text-white shadow-inner">
-                <option value="fire">🔥 Fireball/Burning</option>
-                <option value="cold">❄️ Cold/Ice Storm</option>
-                <option value="poison">🤢 Poison/Acid Cloud</option>
-                <option value="holy">✨ Holy/Healing Light</option>
-                <option value="lightning">⚡ Lightning Bolt/Shock</option>
-                <option value="necrotic">💀 Necrotic/Shadow</option>
-                <option value="aoe">🎯 Generic AoE Circle</option>
-            </select>
-        </div>
+        <!-- ROW 1: Map Upload & Global Actions -->
+        <div class="flex flex-wrap items-center justify-between gap-4 border-b border-gray-700 pb-4">
+            <label for="image-upload" class="custom-file-upload flex items-center gap-2 flex-grow min-w-[200px]">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                Upload Battlemap
+            </label>
+            <input type="file" id="image-upload" accept="image/*">
 
-        <!-- Radius/Size Slider -->
-        <div class="flex flex-col w-full sm:w-1/2 md:w-auto flex-grow">
-            <label for="effect-radius" class="text-gray-300 font-medium mb-1">Radius/Size (5ft steps): <span id="radius-value">3</span></label>
-            <input type="range" id="effect-radius" min="1" max="10" value="3" class="w-full">
-        </div>
-
-        <!-- Opacity Slider -->
-        <div class="flex flex-col w-full sm:w-1/2 md:w-auto flex-grow">
-            <!-- DEFAULT VALUE IS NOW 25% -->
-            <label for="effect-opacity" class="text-gray-300 font-medium mb-1">Opacity: <span id="opacity-value">25</span>%</label>
-            <input type="range" id="effect-opacity" min="10" max="100" value="25" class="w-full">
-        </div>
-
-        <!-- Action Buttons -->
-        <div class="flex gap-4 w-full md:w-auto justify-center md:justify-start mt-2 md:mt-0">
-            <button id="clear-button" class="px-4 py-2 bg-red-600 text-white font-semibold rounded-lg shadow-md hover:bg-red-700 transition duration-150 ease-in-out" disabled>
-                Clear Effects
+            <button id="clear-button" class="px-6 py-3 bg-red-600 text-white font-semibold rounded-xl shadow-md hover:bg-red-700 transition duration-150 ease-in-out min-w-[150px]" disabled>
+                Clear All Effects
             </button>
-            <button id="download-button" class="px-4 py-2 bg-green-500 text-white font-semibold rounded-lg shadow-md hover:bg-green-600 transition duration-150 ease-in-out" disabled>
+            <button id="download-button" class="px-6 py-3 bg-teal-600 text-white font-semibold rounded-xl shadow-md hover:bg-teal-700 transition duration-150 ease-in-out min-w-[150px]" disabled>
                 Download Map + Effects
             </button>
         </div>
+
+
+        <!-- ROW 2: SCALING & GRID CONTROLS -->
+        <div class="flex flex-col md:flex-row gap-6 border-b border-gray-700 pb-6">
+
+            <!-- Real-World Scale Settings -->
+            <div class="bg-gray-700 p-4 rounded-xl shadow-inner flex-1 border border-indigo-500/50">
+                <h2 class="text-xl font-bold text-indigo-300 mb-3 flex items-center">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 6l3 1m0 0l-3 6v10a2 2 0 002 2h14a2 2 0 002-2V7l-3-6m-9 7a4 4 0 104 4m-4-4l-4-4"/></svg>
+                    Real-World Map Dimensions
+                </h2>
+                <div class="flex flex-wrap gap-4">
+                    <div class="flex-1 min-w-[100px]">
+                        <label for="map-length" class="text-sm font-medium text-gray-300 mb-1 block">Total Length/Width:</label>
+                        <input type="number" id="map-length" value="100" min="1" step="10" class="w-full p-2 rounded-lg bg-gray-600 border border-gray-500 text-white shadow-md focus:border-teal-500">
+                    </div>
+                    <div class="w-20">
+                        <label for="map-unit" class="text-sm font-medium text-gray-300 mb-1 block">Unit:</label>
+                        <select id="map-unit" class="w-full p-2 rounded-lg bg-gray-600 border border-gray-500 text-white shadow-md focus:border-teal-500">
+                            <option value="ft">ft</option>
+                            <option value="miles">miles</option>
+                        </select>
+                    </div>
+                    <div class="flex-1">
+                        <label for="scale-overlay-toggle" class="text-sm font-medium text-gray-300 mb-1 block">Scale Display:</label>
+                        <button id="scale-overlay-toggle" class="w-full py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors shadow-md">
+                            Show Scale Overlay
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Grid Visuals & Opacity -->
+            <div class="bg-gray-700 p-4 rounded-xl shadow-inner flex-1 border border-teal-500/50">
+                <h2 class="text-xl font-bold text-teal-300 mb-3 flex items-center">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>
+                    Grid Visuals
+                </h2>
+                <div class="flex flex-col gap-4">
+                    <div class="flex items-center gap-2">
+                        <input type="checkbox" id="grid-toggle" class="form-checkbox h-5 w-5 text-teal-500 rounded border-gray-300">
+                        <label for="grid-toggle" class="text-gray-300 font-medium">Show Grid Overlay</label>
+                    </div>
+
+                    <div class="flex items-center gap-4">
+                        <div class="flex-1">
+                            <label for="grid-density" class="text-sm font-medium text-gray-300 block mb-1">Density/Zoom: <span id="grid-density-value">100</span>%</label>
+                            <input type="range" id="grid-density" min="50" max="200" step="10" value="100" class="w-full">
+                        </div>
+                        <div class="w-16">
+                            <label for="grid-opacity" class="text-sm font-medium text-gray-300 block mb-1">Opacity:</label>
+                            <input type="range" id="grid-opacity" min="10" max="100" value="20" class="w-full">
+                        </div>
+                        <div class="w-10">
+                            <label for="grid-colour" class="text-sm font-medium text-gray-300 block mb-1">Colour:</label>
+                            <input type="color" id="grid-colour" value="#ffffff" class="h-8 w-full rounded bg-gray-600 border border-gray-500">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+        <!-- ROW 3: EFFECT PLACEMENT CONTROLS -->
+        <div id="new-placement-controls" class="border-b border-gray-700 pb-6">
+            <h2 class="text-xl font-bold text-yellow-300 mb-3">Place New Effect</h2>
+            
+            <p class="text-xs text-yellow-400 bg-gray-700/50 p-2 rounded-lg mb-4 border border-yellow-500/30">
+                **Tip:** Single-click to place the effect. **Double-click** the map to place and immediately enter **Edit Mode** to fine-tune the effect!
+            </p>
+
+            <div class="flex flex-wrap gap-4 items-end">
+                <!-- Effect Selector -->
+                <div class="flex flex-col flex-grow min-w-[150px] max-w-full md:max-w-xs">
+                    <label for="effect-type" class="text-sm font-medium text-gray-300 mb-1">Effect Type:</label>
+                    <select id="effect-type" class="p-2 rounded-lg bg-gray-700 border border-gray-600 text-white shadow-md focus:border-purple-500">
+                        <option value="fire">🔥 Circle: Fireball (20ft)</option>
+                        <option value="cold">🧊 Circle: Ice Storm</option>
+                        <option value="snow">🌨️ Circle: Snowfall</option>
+                        <option value="blizzard">🌪️ Circle: Blizzard</option>
+                        <option value="poison">🤢 Circle: Poison Cloud</option>
+                        <option value="holy">✨ Circle: Holy Light</option>
+                        <option value="necrotic">💀 Circle: Necrotic Shadow</option>
+                        <option value="lightning">⚡ Circle: Lightning Field</option>
+                        <option value="square">🧱 Square/Cube</option>
+                        <option value="line">📏 Line/Wall</option>
+                        <option value="cone">🔺 Cone/Breath</option>
+                        <option value="marker">📍 Marker/POI</option>
+                    </select>
+                </div>
+
+                <!-- Radius/Size Slider -->
+                <div id="placement-radius-container" class="flex flex-col flex-grow min-w-[180px]">
+                    <label for="effect-radius" class="text-sm font-medium text-gray-300 mb-1">Size (5ft steps): <span id="radius-value">20</span>ft</label>
+                    <input type="range" id="effect-radius" min="5" max="100" step="5" value="20" class="w-full">
+                </div>
+
+                <!-- Rotation Slider (New for Cone/Line/Lightning) -->
+                <div id="placement-rotation-container" class="flex flex-col flex-grow min-w-[180px] hidden">
+                    <label for="effect-rotation" class="text-sm font-medium text-gray-300 mb-1">Rotation (Degrees): <span id="rotation-value">0</span>°</label>
+                    <input type="range" id="effect-rotation" min="0" max="360" step="5" value="0" class="w-full">
+                </div>
+
+                <!-- Opacity Slider (Placement Mode) -->
+                <div class="flex flex-col flex-grow min-w-[120px] max-w-[150px]">
+                    <label for="effect-opacity" class="text-sm font-medium text-gray-300 mb-1">Opacity: <span id="opacity-value">35</span>%</label>
+                    <input type="range" id="effect-opacity" min="10" max="100" value="35" class="w-full">
+                </div>
+
+                <!-- Marker Label Input (Placement Mode) -->
+                <div id="placement-marker-input-container" class="flex flex-col flex-grow min-w-[200px] hidden">
+                    <label for="placement-marker-tag" class="text-sm font-medium text-gray-300 mb-1">Marker Tag (Optional):</label>
+                    <input type="text" id="placement-marker-tag" placeholder="e.g., Goblin Trap" maxlength="40" class="p-2 rounded-lg bg-gray-700 border border-gray-600 text-white shadow-md">
+                </div>
+            </div>
+        </div>
+
+        <!-- ROW 4: MARKER EDIT CONTROLS (HIDDEN BY DEFAULT) -->
+        <div id="marker-edit-controls" class="hidden flex-col gap-4">
+            <h2 class="text-xl font-bold text-purple-300">Edit Selected Item</h2>
+            <div class="w-full text-sm text-gray-400">Selected: <span id="selected-marker-info" class="font-bold text-purple-200"></span></div>
+
+            <div class="flex flex-wrap gap-4 items-end">
+                
+                <!-- Tag/Icon (Marker Only) -->
+                <div id="edit-marker-fields" class="flex gap-4 flex-grow">
+                    <div id="edit-icon-container" class="flex flex-col min-w-[120px] max-w-[150px] hidden">
+                        <label for="edit-marker-icon" class="text-sm font-medium text-gray-300 mb-1">Icon:</label>
+                        <select id="edit-marker-icon" class="p-2 rounded-lg bg-gray-700 border border-gray-600 text-white shadow-md">
+                            <option value="📍">📍 POI</option>
+                            <option value="❓">❓ Trap</option>
+                            <option value="💀">💀 Danger</option>
+                            <option value="💰">💰 Treasure</option>
+                            <option value="🚪">🚪 Secret</option>
+                        </select>
+                    </div>
+                    <div id="edit-tag-container" class="flex flex-col flex-grow min-w-[150px] hidden">
+                        <label for="edit-marker-tag" class="text-sm font-medium text-gray-300 mb-1">Tag:</label>
+                        <input type="text" id="edit-marker-tag" placeholder="Marker Tag" maxlength="40" class="p-2 rounded-lg bg-gray-700 border border-gray-600 text-white shadow-md">
+                    </div>
+                </div>
+
+
+                <!-- Size/Range Slider (AoE & Marker) -->
+                <div id="edit-size-container" class="flex flex-col flex-grow min-w-[180px]">
+                    <label for="edit-marker-size" class="text-sm font-medium text-gray-300 mb-1">Size/Range: <span id="edit-size-value"></span></label>
+                    <input type="range" id="edit-marker-size" min="5" max="100" step="5" value="20" class="w-full">
+                </div>
+                
+                <!-- Rotation Slider (Rotatable AoE Only) -->
+                <div id="edit-rotation-container" class="flex flex-col flex-grow min-w-[180px] hidden">
+                    <label for="edit-rotation" class="text-sm font-medium text-gray-300 mb-1">Rotation (Degrees): <span id="edit-rotation-value">0</span>°</label>
+                    <input type="range" id="edit-rotation" min="0" max="360" step="5" value="0" class="w-full">
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="flex gap-4 items-end w-full sm:w-auto mt-2">
+                    <button id="delete-marker-button" class="px-6 py-3 bg-red-700 text-white font-semibold rounded-xl hover:bg-red-800 transition-colors shadow-lg">
+                        Delete
+                    </button>
+                    <button id="deselect-marker-button" class="px-6 py-3 bg-gray-500 text-white font-semibold rounded-xl hover:bg-gray-600 transition-colors shadow-lg">
+                        Done Editing
+                    </button>
+                </div>
+            </div>
+        </div>
+
     </div>
 
     <!-- Image and Canvas Container -->
-    <div id="image-container" class="image-container hidden">
-        <img id="base-image" alt="D&D Battlemap" src="https://placehold.co/800x600/273a4b/fff?text=Upload+Your+Map+to+Begin" onerror="this.src='https://placehold.co/800x600/273a4b/fff?text=Map+Load+Error'" />
+    <div id="image-container" class="image-container hidden w-full max-w-6xl">
+        <img id="base-image" alt="D&D Battlemap" src="https://placehold.co/800x600/1e293b/94a3b8?text=Upload+Your+Map+to+Begin" />
         <canvas id="effect-canvas"></canvas>
+
+        <!-- Map Scale Overlay -->
+        <div id="map-scale-overlay" class="absolute top-4 left-4 p-3 bg-black/70 rounded-xl text-xs font-mono transition-opacity duration-300 opacity-0 pointer-events-none border border-teal-500/50">
+            <h3 class="text-sm font-bold text-teal-300 mb-1">Map Scale Information</h3>
+            <p>Total Map Size: <span id="overlay-total-size">100 ft x 100 ft</span></p>
+            <p>Grid Line Size: <span id="overlay-grid-size" class="text-yellow-300 font-bold">5 ft per line</span></p>
+            <p class="mt-2 text-gray-400">Current Density: <span id="overlay-density">100</span>%</p>
+        </div>
     </div>
 
     <!-- Instructions/Placeholder -->
-    <div id="placeholder-message" class="w-full max-w-4xl p-8 bg-gray-700 rounded-xl shadow-lg text-center">
-        <h3 class="text-xl font-semibold text-white mb-2">Welcome to the Battlemap Generator!</h3>
-        <p class="text-gray-400">Upload your image map. Then, select a spell effect and size/opacity above, and click on the map to place the area of effect.</p>
+    <div id="placeholder-message" class="w-full max-w-4xl p-10 bg-gray-800 rounded-2xl shadow-xl text-center border border-indigo-500/50">
+        <h3 class="text-2xl font-semibold text-white mb-3">Map Editor Initialisation</h3>
+        <p class="text-gray-400">Please upload your image map above to begin placing effects and configuring your scale.</p>
+    </div>
+    
+    <!-- Custom Alert/Modal -->
+    <div id="errorModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+        <div class="bg-gray-800 p-6 rounded-xl shadow-2xl max-w-sm w-full border border-red-500/50">
+            <h3 class="text-xl font-bold text-red-400 mb-4">Action Required</h3>
+            <p id="errorText" class="text-gray-300 mb-6">Error message placeholder.</p>
+            <button onclick="document.getElementById('errorModal').classList.add('hidden'); document.getElementById('errorModal').classList.remove('flex');" class="w-full py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors shadow-md">
+                Got It
+            </button>
+        </div>
     </div>
 
-    <script>
-        const imageUpload = document.getElementById('image-upload');
+    <script type="module">
+        // --- DOM Elements ---
         const baseImage = document.getElementById('base-image');
         const canvas = document.getElementById('effect-canvas');
-        const clearButton = document.getElementById('clear-button');
-        const downloadButton = document.getElementById('download-button');
-        const effectTypeSelector = document.getElementById('effect-type');
-        const effectRadiusSlider = document.getElementById('effect-radius');
-        const effectOpacitySlider = document.getElementById('effect-opacity');
-        const radiusValueSpan = document.getElementById('radius-value');
-        const opacityValueSpan = document.getElementById('opacity-value');
+        const ctx = canvas.getContext('2d');
         const imageContainer = document.getElementById('image-container');
         const placeholderMessage = document.getElementById('placeholder-message');
-        const ctx = canvas.getContext('2d');
+        const imageUpload = document.getElementById('image-upload');
+        const clearButton = document.getElementById('clear-button');
+        const downloadButton = document.getElementById('download-button');
 
-        // Stores the coordinates and properties of all placed effects
+        // Grid & Scaling Controls
+        const mapLengthInput = document.getElementById('map-length');
+        const mapUnitSelect = document.getElementById('map-unit');
+        const scaleOverlayToggle = document.getElementById('scale-overlay-toggle');
+        const mapScaleOverlay = document.getElementById('map-scale-overlay');
+        const gridToggle = document.getElementById('grid-toggle');
+        const gridDensitySlider = document.getElementById('grid-density');
+        const gridDensityValueSpan = document.getElementById('grid-density-value');
+        const gridColourInput = document.getElementById('grid-colour');
+        const gridOpacitySlider = document.getElementById('grid-opacity');
+
+        // Placement Controls
+        const newPlacementControls = document.getElementById('new-placement-controls');
+        const effectTypeSelector = document.getElementById('effect-type');
+        const placementMarkerInputContainer = document.getElementById('placement-marker-input-container');
+        const placementMarkerTagInput = document.getElementById('placement-marker-tag');
+        const placementRadiusContainer = document.getElementById('placement-radius-container');
+        const effectRadiusSlider = document.getElementById('effect-radius');
+        const radiusValueSpan = document.getElementById('radius-value');
+        const effectOpacitySlider = document.getElementById('effect-opacity');
+        const placementRotationContainer = document.getElementById('placement-rotation-container');
+        const effectRotationSlider = document.getElementById('effect-rotation');
+        const rotationValueSpan = document.getElementById('rotation-value');
+
+        // Edit Controls
+        const markerEditControls = document.getElementById('marker-edit-controls');
+        const selectedMarkerInfo = document.getElementById('selected-marker-info');
+        const editMarkerFields = document.getElementById('edit-marker-fields');
+        const editIconContainer = document.getElementById('edit-icon-container');
+        const editMarkerIconSelector = document.getElementById('edit-marker-icon');
+        const editTagContainer = document.getElementById('edit-tag-container');
+        const editMarkerTagInput = document.getElementById('edit-marker-tag');
+        const editSizeContainer = document.getElementById('edit-size-container');
+        const editMarkerSizeSlider = document.getElementById('edit-marker-size');
+        const editSizeValueSpan = document.getElementById('edit-size-value');
+        const editRotationContainer = document.getElementById('edit-rotation-container');
+        const editRotationSlider = document.getElementById('edit-rotation');
+        const editRotationValueSpan = document.getElementById('edit-rotation-value');
+        const deleteMarkerButton = document.getElementById('delete-marker-button');
+        const deselectMarkerButton = document.getElementById('deselect-marker-button');
+
+        // --- CONSTANTS & STATE ---
+        const GRID_LINE_COUNT = 20; // Default grid lines for scaling calculation
+        const NORMALIZED_MAP_SIZE = 1000; // Conceptual pixel size for normalization
+        const PIXELS_PER_5FT_NORMALIZED = 50; // The normalized size equivalent of 5ft
+
         let dataPoints = [];
-        // Normalized Radius: maps the slider value (1-10) to an internal normalized size (50-500)
-        const BASE_RADIUS_NORMALIZED = 50; 
+        let selectedPointIndex = null;
+        let isDragging = false;
+        let isMousePressed = false;
+        let clickStartX = 0;
+        let clickStartY = 0;
+        let dragOffsetX = 0; 
+        let dragOffsetY = 0;
+        let showScaleOverlay = false;
+        let animationFrameId = null; // Store the animation frame ID
+        let animationTime = 0; // Tracks elapsed time for snow animation
 
-        // Update slider displays when sliders move
-        effectRadiusSlider.addEventListener('input', () => {
-            radiusValueSpan.textContent = effectRadiusSlider.value;
-        });
-        effectOpacitySlider.addEventListener('input', () => {
-            opacityValueSpan.textContent = effectOpacitySlider.value;
-        });
+        // Scaling State
+        let mapScale = {
+            totalSize: 100,
+            unit: 'ft',
+        };
+
+        // Grid Visual State
+        let gridState = {
+            isVisible: false,
+            density: 1.0, // 1.0 = 100% density
+            colour: '#ffffff',
+            opacity: 0.2,
+        };
+
+        // Current placement state (for visual preview before click)
+        let placementMode = {
+            x: 0,
+            y: 0,
+            isVisible: false
+        };
+
+        // --- UTILITY FUNCTIONS ---
 
         /**
-         * Clears all effect data and redraws the canvas
+         * Calculates the size of one 5ft grid cell in screen pixels.
+         * @param {number} canvasWidth - The current width of the canvas.
+         * @returns {number} The pixel size of a 5ft cell.
          */
-        function clearEffects() {
-            dataPoints = [];
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            clearButton.disabled = true;
-            downloadButton.disabled = true;
+        function get5ftCellPixelSize(canvasWidth) {
+            // 1. Calculate the real-world size of one of the 20 grid lines (e.g., 5ft if mapScale.totalSize is 100ft)
+            const realWorldGridUnit = mapScale.totalSize / GRID_LINE_COUNT;
+            const baseUnitSize = 5; // We want to calculate the size of a 5ft unit
+            
+            // 2. Calculate the normalized size of 5ft relative to the whole map
+            const normalizedUnitInNormalizedPixels = (baseUnitSize / realWorldGridUnit) * PIXELS_PER_5FT_NORMALIZED;
+
+            // 3. Convert normalized pixels to screen pixels (using the ratio of screen width to normalized map size)
+            const normalizedToScreenRatio = canvasWidth / NORMALIZED_MAP_SIZE; 
+            return normalizedUnitInNormalizedPixels * normalizedToScreenRatio;
         }
 
         /**
-         * Sets the canvas dimensions to match the displayed image dimensions.
+         * Converts screen coordinates to normalized map coordinates (0-1000).
          */
-        function resizeCanvas() {
-            const rect = imageContainer.getBoundingClientRect();
+        function normalizeCoordinates(x, y) {
+            const normalizedX = (x / canvas.width) * NORMALIZED_MAP_SIZE;
+            const normalizedY = (y / canvas.height) * NORMALIZED_MAP_SIZE;
+            return { x: normalizedX, y: normalizedY };
+        }
+        
+        /**
+         * Converts normalized map coordinates (0-1000) back to screen coordinates.
+         */
+        function displayCoordinates(x, y) {
+            const displayX = (x / NORMALIZED_MAP_SIZE) * canvas.width;
+            const displayY = (y / NORMALIZED_MAP_SIZE) * canvas.height;
+            return { x: displayX, y: displayY };
+        }
+
+        /**
+         * Updates the dimensions of the canvas to match the displayed image.
+         */
+        function updateCanvasDimensions() {
+            const rect = baseImage.getBoundingClientRect();
             canvas.width = rect.width;
             canvas.height = rect.height;
-            imageContainer.style.width = `${rect.width}px`;
+            // Also update the image container's effective size
             imageContainer.style.height = `${rect.height}px`;
-            drawEffects(); // Redraw effects after resizing
+
+            redraw();
+        }
+        
+        // --- ANIMATION FRAME ---
+
+        function gameLoop(timestamp) {
+            // Update animation time (used for snow/lightning effects)
+            if (animationTime === 0) {
+                animationTime = timestamp;
+            }
+            const deltaTime = timestamp - animationTime;
+            animationTime = timestamp;
+
+            // Check if any effect needs animation (snow/blizzard/lightning)
+            const needsAnimation = dataPoints.some(p => 
+                p.effectType === 'snow' || 
+                p.effectType === 'blizzard' ||
+                p.effectType === 'lightning'
+            ) || (placementMode.isVisible && (effectTypeSelector.value === 'snow' || effectTypeSelector.value === 'blizzard' || effectTypeSelector.value === 'lightning'));
+
+            if (needsAnimation) {
+                // If the app is visible, redraw and request next frame
+                redraw(deltaTime);
+                animationFrameId = requestAnimationFrame(gameLoop);
+            } else {
+                // If no effects need animation, just redraw once and stop the loop
+                redraw();
+                animationFrameId = null;
+            }
+        }
+        
+        // Function to start the animation loop if needed
+        function startAnimationLoop() {
+            if (animationFrameId === null) {
+                animationTime = 0; // Reset time on start
+                animationFrameId = requestAnimationFrame(gameLoop);
+            }
+        }
+        
+        // --- DRAWING LOGIC ---
+
+        function drawGrid() {
+            if (!gridState.isVisible || baseImage.src.includes('placehold.co')) return;
+
+            const gridDensityFactor = gridDensitySlider.value / 100; // e.g., 100% -> 1.0, 50% -> 0.5
+            const pixelStep = (canvas.width / GRID_LINE_COUNT) * (1 / gridDensityFactor);
+
+            ctx.save();
+            ctx.strokeStyle = gridState.colour;
+            ctx.lineWidth = 1;
+            ctx.globalAlpha = gridState.opacity;
+
+            // Draw vertical lines
+            for (let i = 0; i * pixelStep <= canvas.width + 1; i++) {
+                const x = i * pixelStep;
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, canvas.height);
+                ctx.stroke();
+            }
+
+            // Draw horizontal lines
+            for (let i = 0; i * pixelStep <= canvas.height + 1; i++) {
+                const y = i * pixelStep;
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(canvas.width, y);
+                ctx.stroke();
+            }
+
+            ctx.restore();
+        }
+        
+        /**
+         * Draws a highly realistic circular Area of Effect using gradients and shadows.
+         */
+        function drawRealisticCircleAoE(targetCtx, radiusPixels, point, primaryColor, secondaryColor, blurFactor, blendingMode) {
+            targetCtx.save();
+            targetCtx.globalAlpha = point.opacity;
+            targetCtx.globalCompositeOperation = blendingMode;
+
+            // 1. Create a Radial Gradient for Inner Glow/Depth
+            const gradient = targetCtx.createRadialGradient(0, 0, radiusPixels * 0.1, 0, 0, radiusPixels);
+            
+            // Inner color (more opaque/intense)
+            gradient.addColorStop(0, primaryColor); 
+            // Outer color (fades out)
+            gradient.addColorStop(0.8, secondaryColor);
+            // Fully transparent edge
+            gradient.addColorStop(1, 'rgba(0, 0, 0, 0)'); 
+
+            targetCtx.fillStyle = gradient;
+
+            // 2. Apply Shadow for the soft, glowing edge (Mist/Snow/Fire)
+            // Use the primary color for the shadow but ensure full alpha for maximum glow/mist effect
+            targetCtx.shadowColor = primaryColor.replace(/,\s*\d+\)/, ', 1)'); 
+            targetCtx.shadowBlur = radiusPixels * blurFactor; // Blur scales with size
+
+            // 3. Draw the main circle fill
+            targetCtx.beginPath();
+            targetCtx.arc(0, 0, radiusPixels, 0, Math.PI * 2);
+            targetCtx.fill();
+
+            targetCtx.restore();
+        }
+        
+        /**
+         * Draws fine animated particles for snow and blizzard effects.
+         * @param {CanvasRenderingContext2D} targetCtx - The context to draw on.
+         * @param {number} radiusPixels - The radius of the effect in pixels.
+         * @param {string} particleColor - Color of the particles.
+         * @param {number} speedFactor - Controls the speed of movement.
+         * @param {number} densityFactor - Controls the number of particles.
+         * @param {number} deltaTime - Time elapsed since last frame.
+         */
+        function drawParticles(targetCtx, radiusPixels, particleColor, speedFactor, densityFactor, deltaTime) {
+            targetCtx.save();
+            targetCtx.globalAlpha = 0.8; 
+            targetCtx.fillStyle = particleColor;
+
+            // Generate particles based on effect size (normalize to a fixed number per area)
+            const area = Math.PI * radiusPixels * radiusPixels;
+            const numParticles = Math.floor(area / 1000 * densityFactor);
+
+            // Seed a consistent random source based on normalized coordinates/radius to make particles stick
+            const seed = (Math.floor(targetCtx.getTransform().e / 10) * 100) + (Math.floor(targetCtx.getTransform().f / 10) * 1000) + radiusPixels;
+
+            for (let i = 0; i < numParticles; i++) {
+                // Use a seeded pseudo-random function for consistent particle positions
+                // Simple hash function for pseudo-random number generation
+                const hash = (i * 1103515245 + seed) % 2147483647;
+                const prn = (hash % 10000) / 10000;
+                
+                // Position and movement is relative to the current time (animationTime in ms)
+                const phaseX = (prn * 5000 + animationTime * speedFactor) % (radiusPixels * 2);
+                const phaseY = (prn * 7000 + animationTime * speedFactor * 1.5) % (radiusPixels * 2);
+
+                // Map phase to coordinates within the square bounding box
+                let x = phaseX - radiusPixels; 
+                let y = phaseY - radiusPixels; 
+                
+                // Keep particles inside the circle
+                const distance = Math.sqrt(x * x + y * y);
+                if (distance < radiusPixels) {
+                    const particleSize = 1 + prn * 2 * densityFactor; // Small variation in size
+                    targetCtx.beginPath();
+                    targetCtx.arc(x, y, particleSize, 0, Math.PI * 2);
+                    targetCtx.fill();
+                }
+            }
+
+            targetCtx.restore();
         }
 
         /**
-         * Draws a specific effect based on its type and properties.
-         * @param {Object} point - The effect data point {x, y, effectType, radius, opacity}
-         * @param {CanvasRenderingContext2D} targetCtx - The context to draw on (main or temp for download)
-         * @param {number} scaleFactor - Scale factor for coordinates and radius (e.g., pixelScale or highResScale)
+         * Draws a circular area of effect with forked, jagged lightning arcs.
+         * @param {number} deltaTime - Time elapsed since last frame (for animation).
          */
-        function drawEffect(point, targetCtx, scaleFactor) {
-            // Calculate pixel position and scaled radius
-            const x = point.x * scaleFactor;
-            const y = point.y * scaleFactor;
-            const radius = point.radius * BASE_RADIUS_NORMALIZED * scaleFactor;
-            const opacity = point.opacity;
+        function drawJaggedLightningAoE(targetCtx, radiusPixels, point, blendingMode, deltaTime) {
+            targetCtx.save();
+            targetCtx.globalAlpha = point.opacity;
+            targetCtx.globalCompositeOperation = blendingMode;
+            
+            // Use time for subtle animation/flicker
+            const flickerIntensity = Math.sin(animationTime / 100) * 0.1 + 0.9;
+            targetCtx.globalAlpha *= flickerIntensity;
+            
+            const numBolts = 10; 
+            const boltLength = radiusPixels * 0.9;
+            const rotationOffset = (point.rotation || 0) * (Math.PI / 180);
 
-            targetCtx.save(); // Save the current canvas state before applying custom styles
-            targetCtx.globalAlpha = opacity; // Apply effect opacity
+            // 1. Draw the central, intense glow (Halo)
+            targetCtx.save();
+            targetCtx.shadowColor = `rgba(150, 150, 255, ${0.8 * flickerIntensity})`;
+            targetCtx.shadowBlur = radiusPixels * 0.4;
+            targetCtx.fillStyle = `rgba(200, 200, 255, ${0.2 * flickerIntensity})`; 
+            targetCtx.beginPath();
+            targetCtx.arc(0, 0, radiusPixels, 0, Math.PI * 2);
+            targetCtx.fill();
+            targetCtx.restore();
 
-            // Reset composition mode
-            targetCtx.globalCompositeOperation = 'source-over'; 
-            targetCtx.shadowBlur = 0;
+            // 2. Draw the forked lightning lines (two passes for halo and center)
+            for (let i = 0; i < numBolts; i++) {
+                // Introduce randomness based on time for 'forking' position
+                const timeSeed = Math.floor(animationTime / 50) + i; 
+                const angle = (i / numBolts) * Math.PI * 2 + rotationOffset;
 
-            switch (point.effectType) {
-                case 'fire':
-                    // High-Detail Fire: White core, orange gradient, wide yellow glow
-                    targetCtx.globalCompositeOperation = 'lighter'; 
-                    targetCtx.shadowColor = 'rgba(255, 165, 0, 1)'; // Orange glow color
-                    targetCtx.shadowBlur = radius * 0.4; // Wide, soft glow
-
-                    const fireGradient = targetCtx.createRadialGradient(x, y, radius * 0.05, x, y, radius * 0.8);
-                    fireGradient.addColorStop(0, 'rgba(255, 255, 100, 1.0)'); // White-hot core
-                    fireGradient.addColorStop(0.3, 'rgba(255, 140, 0, 0.9)');  // Deep Orange
-                    fireGradient.addColorStop(0.7, 'rgba(255, 0, 0, 0.4)');    // Red Haze
-                    fireGradient.addColorStop(1, 'rgba(255, 0, 0, 0.0)');      // Transparent edge
+                for (let pass = 0; pass < 2; pass++) {
+                    const isHalo = pass === 0;
                     
-                    targetCtx.fillStyle = fireGradient;
-                    targetCtx.beginPath();
-                    targetCtx.arc(x, y, radius * 0.8, 0, Math.PI * 2); 
-                    targetCtx.fill();
-                    break;
-
-                case 'cold':
-                    // High-Detail Cold: Crystalline core, soft blue mist, icy glow
-                    targetCtx.globalCompositeOperation = 'source-over'; 
-                    targetCtx.shadowColor = 'rgba(173, 216, 230, 0.8)'; // Icy white glow
-                    targetCtx.shadowBlur = radius * 0.2; 
+                    targetCtx.strokeStyle = isHalo ? 'rgba(150, 150, 255, 0.8)' : 'rgba(255, 255, 255, 1.0)';
+                    targetCtx.lineWidth = isHalo ? 6 : 2;
+                    targetCtx.shadowColor = isHalo ? 'rgba(150, 150, 255, 0.8)' : 'rgba(255, 255, 255, 0.5)';
+                    targetCtx.shadowBlur = isHalo ? 15 : 0;
                     
-                    const coldGradient = targetCtx.createRadialGradient(x, y, radius * 0.05, x, y, radius);
-                    coldGradient.addColorStop(0, 'rgba(240, 248, 255, 0.9)'); // White crystalline core
-                    coldGradient.addColorStop(0.4, 'rgba(0, 191, 255, 0.6)'); // Deep Sky Blue
-                    coldGradient.addColorStop(0.8, 'rgba(0, 100, 255, 0.2)'); // Dark Blue Mist
-                    coldGradient.addColorStop(1, 'rgba(0, 0, 139, 0.0)');     // Fully transparent
+                    targetCtx.beginPath();
+                    targetCtx.moveTo(0, 0);
                     
-                    targetCtx.fillStyle = coldGradient;
-                    targetCtx.beginPath();
-                    targetCtx.arc(x, y, radius, 0, Math.PI * 2);
-                    targetCtx.fill();
+                    let currentX = 0;
+                    let currentY = 0;
+                    const segmentLength = boltLength / 5;
                     
-                    // Draw a sharp, lighter crystalline edge on top (no shadow)
-                    targetCtx.shadowBlur = 0;
-                    targetCtx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
-                    targetCtx.lineWidth = radius * 0.01;
-                    targetCtx.beginPath();
-                    targetCtx.arc(x, y, radius * 0.9, 0, Math.PI * 2);
-                    targetCtx.stroke();
-                    break;
-                
-                case 'poison':
-                    // High-Detail Poison: Opaque core, hazy green vapor, sickly yellow shimmer
-                    targetCtx.globalCompositeOperation = 'source-over';
-                    targetCtx.shadowColor = 'rgba(124, 252, 0, 0.8)'; // Lime green glow
-                    targetCtx.shadowBlur = radius * 0.3;
-
-                    const poisonGradient = targetCtx.createRadialGradient(x, y, radius * 0.1, x, y, radius);
-                    poisonGradient.addColorStop(0, 'rgba(124, 252, 0, 0.7)'); // Lime Green Center
-                    poisonGradient.addColorStop(0.5, 'rgba(50, 205, 50, 0.6)'); // Medium Green
-                    poisonGradient.addColorStop(0.9, 'rgba(0, 100, 0, 0.2)'); // Dark Green Haze
-                    poisonGradient.addColorStop(1, 'rgba(0, 100, 0, 0.0)'); // Fully transparent edge
-                    
-                    targetCtx.fillStyle = poisonGradient;
-                    targetCtx.beginPath();
-                    targetCtx.arc(x, y, radius, 0, Math.PI * 2);
-                    targetCtx.fill();
-
-                    // Inner core detail
-                    targetCtx.shadowBlur = 0;
-                    targetCtx.fillStyle = 'rgba(255, 255, 0, 0.1)'; // Yellowish inner shimmer
-                    targetCtx.beginPath();
-                    targetCtx.arc(x, y, radius * 0.4, 0, Math.PI * 2);
-                    targetCtx.fill();
-                    break;
-
-                case 'holy':
-                    // High-Detail Holy: Intense white core, wide golden aura, additive glow
-                    targetCtx.globalCompositeOperation = 'lighter'; 
-                    targetCtx.shadowColor = 'rgba(255, 215, 0, 1.0)'; // Gold glow
-                    targetCtx.shadowBlur = radius * 0.5;
-
-                    const holyGradient = targetCtx.createRadialGradient(x, y, radius * 0.05, x, y, radius);
-                    holyGradient.addColorStop(0, 'rgba(255, 255, 200, 1.0)'); // Bright White Core
-                    holyGradient.addColorStop(0.4, 'rgba(255, 223, 0, 0.7)'); // Gold Mid
-                    holyGradient.addColorStop(0.8, 'rgba(255, 255, 255, 0.3)'); // Soft White Glow
-                    holyGradient.addColorStop(1, 'rgba(255, 255, 255, 0.0)'); // Fully transparent edge
-                    
-                    targetCtx.fillStyle = holyGradient;
-                    targetCtx.beginPath();
-                    targetCtx.arc(x, y, radius, 0, Math.PI * 2);
-                    targetCtx.fill();
-                    break;
-                
-                case 'lightning':
-                    // New Lightning: Sharp inner bolt, hazy violet-blue glow
-                    targetCtx.globalCompositeOperation = 'lighter';
-                    targetCtx.shadowColor = 'rgba(0, 191, 255, 1)'; // Deep blue glow
-                    targetCtx.shadowBlur = radius * 0.3;
-
-                    const lightningGradient = targetCtx.createRadialGradient(x, y, radius * 0.05, x, y, radius);
-                    lightningGradient.addColorStop(0, 'rgba(255, 255, 255, 1.0)'); // White-hot strike center
-                    lightningGradient.addColorStop(0.4, 'rgba(100, 149, 237, 0.8)'); // Cornflower Blue
-                    lightningGradient.addColorStop(0.8, 'rgba(75, 0, 130, 0.3)'); // Deep Violet Haze
-                    lightningGradient.addColorStop(1, 'rgba(0, 0, 255, 0.0)'); // Transparent edge
-                    
-                    targetCtx.fillStyle = lightningGradient;
-                    targetCtx.beginPath();
-                    targetCtx.arc(x, y, radius, 0, Math.PI * 2);
-                    targetCtx.fill();
-
-                    // Optional: Inner sharp "bolt" line (no shadow)
-                    targetCtx.shadowBlur = 0;
-                    targetCtx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
-                    targetCtx.lineWidth = radius * 0.02;
-                    targetCtx.beginPath();
-                    targetCtx.arc(x, y, radius * 0.4, 0, Math.PI * 2);
-                    targetCtx.stroke();
-                    break;
-                
-                case 'necrotic':
-                    // New Necrotic: Dark void core, sickly smoky aura, violet glow
-                    targetCtx.globalCompositeOperation = 'source-over'; 
-                    targetCtx.shadowColor = 'rgba(138, 43, 226, 0.8)'; // Deep violet glow
-                    targetCtx.shadowBlur = radius * 0.35;
-
-                    const necroGradient = targetCtx.createRadialGradient(x, y, radius * 0.1, x, y, radius);
-                    necroGradient.addColorStop(0, 'rgba(0, 0, 0, 0.9)');   // Black Void Center
-                    necroGradient.addColorStop(0.5, 'rgba(138, 43, 226, 0.5)'); // Violet Energy
-                    necroGradient.addColorStop(0.9, 'rgba(0, 0, 0, 0.3)');     // Black Smoky Haze
-                    necroGradient.addColorStop(1, 'rgba(0, 0, 0, 0.0)');       // Transparent edge
-
-                    targetCtx.fillStyle = necroGradient;
-                    targetCtx.beginPath();
-                    targetCtx.arc(x, y, radius, 0, Math.PI * 2);
-                    targetCtx.fill();
-                    
-                    // Add a creeping smoky texture using lighter shade
-                    targetCtx.shadowBlur = 0;
-                    targetCtx.strokeStyle = 'rgba(170, 170, 170, 0.2)'; // Greyish smoke line
-                    targetCtx.lineWidth = radius * 0.02;
-                    targetCtx.lineCap = 'round';
-                    targetCtx.beginPath();
-                    // Draw a simple noise circle line
-                    for(let i=0; i < 360; i += 15) {
-                        const angle = i * Math.PI / 180;
-                        // Add slight randomness to the radius to make it look smoky/creeping
-                        const r = radius * (0.8 + Math.random() * 0.2); 
-                        if (i === 0) {
-                            targetCtx.moveTo(x + r * Math.cos(angle), y + r * Math.sin(angle));
-                        } else {
-                            targetCtx.lineTo(x + r * Math.cos(angle), y + r * Math.sin(angle));
+                    for (let j = 0; j < 5; j++) {
+                        // Calculate next segment end point based on angle
+                        // Seed randomness using timeSeed to make all strokes in one frame consistent
+                        let segmentAngle = angle + (Math.sin(timeSeed * 0.5 + j * 2) * 0.2); 
+                        let nextX = currentX + segmentLength * Math.cos(segmentAngle);
+                        let nextY = currentY + segmentLength * Math.sin(segmentAngle);
+                        
+                        const distance = Math.sqrt(nextX*nextX + nextY*nextY);
+                        if (distance > boltLength) {
+                            const ratio = boltLength / distance;
+                            nextX *= ratio;
+                            nextY *= ratio;
                         }
+                        
+                        targetCtx.lineTo(nextX, nextY);
+                        currentX = nextX;
+                        currentY = nextY;
                     }
                     targetCtx.stroke();
-                    targetCtx.lineCap = 'butt'; // Reset cap
-                    break;
-
-                case 'aoe':
-                default:
-                    // Generic AoE: Simple red dashed circle, diffused fill
-                    targetCtx.strokeStyle = 'rgba(255, 0, 0, 0.7)';
-                    const aoeGradient = targetCtx.createRadialGradient(x, y, 0, x, y, radius);
-                    aoeGradient.addColorStop(0, 'rgba(255, 0, 0, 0.05)'); // Very light red center
-                    aoeGradient.addColorStop(1, 'rgba(255, 0, 0, 0.0)'); // Transparent edge
-                    targetCtx.fillStyle = aoeGradient; // Corrected typo in variable name here
-                    targetCtx.lineWidth = radius * 0.03;
-                    targetCtx.setLineDash([radius * 0.05, radius * 0.05]);
-                    targetCtx.beginPath();
-                    targetCtx.arc(x, y, radius, 0, Math.PI * 2);
-                    targetCtx.fill(); // Fill with the subtle gradient
-                    targetCtx.stroke();
-                    targetCtx.setLineDash([]); // Reset dash
-                    break;
+                }
             }
 
-            targetCtx.restore(); // Restore the canvas state (resets globalAlpha, shadows, etc.)
+            targetCtx.restore();
         }
 
+
         /**
-         * Draws all stored effects on the canvas.
+         * Draws a single effect marker or AoE.
+         * @param {Object} point - The data point object from dataPoints.
+         * @param {CanvasRenderingContext2D} targetCtx - The context to draw on.
+         * @param {number} cellPixelSize - The pixel size of a 5ft cell.
+         * @param {number} deltaTime - Time elapsed since last frame (0 if not animating).
          */
-        function drawEffects() {
-            if (dataPoints.length === 0) {
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                return;
+        function drawEffect(point, targetCtx, cellPixelSize, deltaTime = 0) {
+            const coords = displayCoordinates(point.x, point.y);
+            const x = coords.x;
+            const y = coords.y;
+            
+            const isMarker = point.effectType === 'marker';
+            const type = point.effectType;
+
+            // Radius/Size is stored in feet (e.g., 20ft). Convert to 5ft steps, then to pixels.
+            const normalizedRadiusSteps = isMarker ? 1 : point.radius / 5;
+            const radiusPixels = isMarker ? 
+                (point.radius * cellPixelSize * 0.2) : // Markers use the radius more as a scale factor
+                (normalizedRadiusSteps * cellPixelSize); // AoEs are scaled by 5ft units
+            
+            const opacity = point.opacity;
+            const rotationRad = (point.rotation || 0) * (Math.PI / 180);
+
+            // Calculate a common scaling factor for things like shadow blur/linewidth
+            const visualScaleFactor = canvas.width / NORMALIZED_MAP_SIZE * 10; 
+
+            targetCtx.save();
+            targetCtx.translate(x, y); // Move origin to object center
+
+            // --- Selection Glow (always drawn first) ---
+            if (point.isSelected) {
+                targetCtx.save();
+                targetCtx.translate(-x, -y); // Translate back to draw selection glow globally
+                
+                const selectionRadius = radiusPixels + 10 * visualScaleFactor; 
+                targetCtx.strokeStyle = 'rgba(129, 140, 248, 1.0)';
+                targetCtx.lineWidth = 4;
+                targetCtx.setLineDash([8 * visualScaleFactor, 8 * visualScaleFactor]);
+                targetCtx.shadowColor = 'rgba(129, 140, 248, 0.8)';
+                targetCtx.shadowBlur = 15;
+                targetCtx.beginPath();
+                // Draw a selection circle around the object's center point
+                targetCtx.arc(x, y, isMarker ? 30 : selectionRadius, 0, Math.PI * 2); 
+                targetCtx.stroke();
+                
+                targetCtx.restore();
+            }
+            
+            // --- Translate and Rotate for the effect itself ---
+            if (type === 'line' || type === 'cone') {
+                targetCtx.rotate(rotationRad);
+            }
+            
+
+            if (type === 'marker') {
+                targetCtx.globalAlpha = 1.0; 
+                
+                const emoji = point.icon || '📍';
+                const emojiScaleFactor = 1 + (point.radius - 5) * 0.05; // Base radius is 5
+                const emojiFontSize = 40 * emojiScaleFactor; 
+                
+                targetCtx.shadowBlur = 10;
+                targetCtx.shadowColor = 'rgba(255, 255, 0, 1)'; 
+                targetCtx.font = `${emojiFontSize}px sans-serif`; 
+                targetCtx.textAlign = 'center'; 
+                targetCtx.textBaseline = 'middle'; 
+                targetCtx.fillText(emoji, 0, 0);
+
+                if (point.label) {
+                    targetCtx.shadowBlur = 0; 
+                    const labelFontSize = 16 * emojiScaleFactor * 0.8;
+                    targetCtx.font = `bold ${labelFontSize}px Inter, sans-serif`;
+                    targetCtx.textAlign = 'center';
+                    targetCtx.textBaseline = 'bottom';
+                    const verticalOffset = 40 * emojiScaleFactor; 
+                    
+                    targetCtx.strokeStyle = 'rgba(0, 0, 0, 0.9)';
+                    targetCtx.lineWidth = 6;
+                    targetCtx.strokeText(point.label, 0, -verticalOffset);
+                    
+                    targetCtx.fillStyle = 'rgba(255, 255, 255, 1.0)';
+                    targetCtx.fillText(point.label, 0, -verticalOffset);
+                }
+                
+            } else if (['fire', 'cold', 'poison', 'holy', 'necrotic', 'snow', 'blizzard'].includes(type)) {
+                
+                let primaryColor, secondaryColor, blurFactor, blendingMode;
+                
+                if (type === 'fire') { 
+                    primaryColor = 'rgba(255, 100, 0, 0.8)'; 
+                    secondaryColor = 'rgba(255, 165, 0, 0.2)'; 
+                    blurFactor = 0.25; 
+                    blendingMode = 'source-over';
+                }
+                else if (type === 'cold') { 
+                    primaryColor = 'rgba(173, 216, 230, 0.8)'; // Light Blue/White Ice
+                    secondaryColor = 'rgba(0, 100, 255, 0.3)'; 
+                    blurFactor = 0.3; 
+                    blendingMode = 'lighter'; 
+                }
+                else if (type === 'snow') { 
+                    primaryColor = 'rgba(255, 255, 255, 0.8)'; // Pure White, snowy center
+                    secondaryColor = 'rgba(200, 200, 255, 0.3)'; // Faint cool glow
+                    blurFactor = 0.45; // Very high blur for mist/snow
+                    blendingMode = 'lighter'; 
+                }
+                else if (type === 'blizzard') { 
+                    primaryColor = 'rgba(220, 240, 255, 1.0)'; // Intense white-blue
+                    secondaryColor = 'rgba(50, 150, 255, 0.5)'; // Deeper blue fade
+                    blurFactor = 0.5; 
+                    blendingMode = 'lighter'; 
+                }
+                else if (type === 'holy') { 
+                    primaryColor = 'rgba(255, 255, 200, 0.9)'; // Brilliant White/Yellow
+                    secondaryColor = 'rgba(255, 215, 0, 0.4)'; // Gold fade
+                    blurFactor = 0.15; // Tight, intense glow
+                    blendingMode = 'lighter'; 
+                }
+                else if (type === 'poison') { 
+                    primaryColor = 'rgba(0, 100, 0, 0.8)'; // Dark green misty center
+                    secondaryColor = 'rgba(50, 205, 50, 0.2)'; // Lime green mist edge
+                    blurFactor = 0.6; // High blur for deep mist
+                    blendingMode = 'source-over'; 
+                }
+                else if (type === 'necrotic') { 
+                    primaryColor = 'rgba(50, 0, 50, 0.9)'; // Dark Violet/Black center
+                    secondaryColor = 'rgba(138, 43, 226, 0.1)'; // Faint purple mist edge
+                    blurFactor = 0.5; // High blur for misty shadow
+                    blendingMode = 'source-over'; 
+                }
+                
+                // 1. Draw the primary mist/glow effect
+                drawRealisticCircleAoE(targetCtx, radiusPixels, point, primaryColor, secondaryColor, blurFactor, blendingMode);
+
+                // 2. Draw animated particles for snow/blizzard effects
+                if (type === 'snow' || type === 'blizzard') {
+                    const particleColor = type === 'snow' ? 'rgba(255, 255, 255, 0.6)' : 'rgba(200, 220, 255, 0.8)';
+                    const speedFactor = type === 'snow' ? 0.05 : 0.2; // Blizzard is faster
+                    const densityFactor = type === 'snow' ? 0.4 : 1.0; // Blizzard is denser
+                    drawParticles(targetCtx, radiusPixels, particleColor, speedFactor, densityFactor, deltaTime);
+                }
+
+
+            } else if (type === 'lightning') {
+                // Lightning AoE is now a jagged circle
+                drawJaggedLightningAoE(targetCtx, radiusPixels, point, 'lighter', deltaTime);
+
+            } else if (type === 'square' || type === 'line' || type === 'cone') {
+                // --- Simple Energy Field AoEs (Square, Line, Cone) ---
+                
+                targetCtx.globalAlpha = opacity;
+                targetCtx.shadowBlur = 10;
+                targetCtx.lineWidth = 3; 
+                targetCtx.globalCompositeOperation = 'source-over';
+
+                const length = radiusPixels * 2; 
+
+                if (type === 'square') {
+                    // Softened Force Cube
+                    targetCtx.fillStyle = `rgba(180, 180, 255, 0.2)`; 
+                    targetCtx.strokeStyle = `rgba(180, 180, 255, 0.8)`;
+                    targetCtx.shadowColor = targetCtx.strokeStyle;
+                    
+                    const halfSize = radiusPixels; 
+                    targetCtx.fillRect(-halfSize, -halfSize, halfSize * 2, halfSize * 2);
+                    targetCtx.strokeRect(-halfSize, -halfSize, halfSize * 2, halfSize * 2);
+
+                } else if (type === 'line') {
+                    // Softened Wall of Energy
+                    const baseWidth = cellPixelSize * 0.75; 
+                    targetCtx.fillStyle = 'rgba(255, 255, 0, 0.3)'; 
+                    targetCtx.strokeStyle = 'rgba(255, 255, 0, 1.0)';
+                    targetCtx.shadowColor = targetCtx.strokeStyle;
+                    
+                    targetCtx.fillRect(-baseWidth, -length / 2, baseWidth * 2, length);
+                    targetCtx.strokeRect(-baseWidth, -length / 2, baseWidth * 2, length);
+
+                } else if (type === 'cone') {
+                    // Softened Breath/Cone
+                    targetCtx.fillStyle = 'rgba(0, 255, 255, 0.2)'; 
+                    targetCtx.strokeStyle = 'rgba(0, 255, 255, 0.8)';
+                    targetCtx.shadowColor = targetCtx.strokeStyle;
+
+                    targetCtx.beginPath();
+                    targetCtx.moveTo(0, 0); 
+                    const coneAngle = Math.PI / 8;
+                    targetCtx.lineTo(length * Math.cos(-coneAngle), length * Math.sin(-coneAngle));
+                    targetCtx.lineTo(length * Math.cos(coneAngle), length * Math.sin(coneAngle));
+                    targetCtx.closePath();
+                    targetCtx.fill();
+                    targetCtx.stroke();
+                }
+
             }
 
-            // Clear the canvas before redrawing all effects
+            targetCtx.restore(); // Restore context after drawing and translating/rotating
+        }
+
+
+        function redraw(deltaTime = 0) {
+            // Clear the canvas
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            // Scale factor for current display canvas
-            const pixelScale = canvas.width / 1000; 
+            // 1. Draw the Grid
+            drawGrid();
 
-            dataPoints.forEach(point => drawEffect(point, ctx, pixelScale));
-        }
+            const cellPixelSize = get5ftCellPixelSize(canvas.width);
 
-        /**
-         * Adds a data point based on a mouse click.
-         */
-        function addDataPoint(event) {
-            if (baseImage.src.includes('placehold.co')) {
-                return;
-            }
-
-            const rect = canvas.getBoundingClientRect();
-            const mouseX = event.clientX - rect.left;
-            const mouseY = event.clientY - rect.top;
-
-            // Normalize coordinates to a 0-1000 scale
-            const normalizedX = (mouseX / canvas.width) * 1000;
-            const normalizedY = (mouseY / canvas.height) * 1000;
-
-            // Get current selected effect and radius/opacity
-            const currentEffect = effectTypeSelector.value;
-            const currentRadius = parseInt(effectRadiusSlider.value); // Slider value 1-10
-            const currentOpacity = parseInt(effectOpacitySlider.value) / 100; // Slider value 0.1-1.0
-
-            dataPoints.push({ 
-                x: normalizedX, 
-                y: normalizedY, 
-                effectType: currentEffect,
-                radius: currentRadius, // Store the simple radius value 1-10
-                opacity: currentOpacity // Store the selected opacity
+            // 2. Draw all saved data points
+            dataPoints.forEach((point, index) => {
+                point.isSelected = (index === selectedPointIndex);
+                drawEffect(point, ctx, cellPixelSize, deltaTime);
             });
 
-            drawEffects();
+            // 3. Draw placement preview (if applicable and no point is selected)
+            if (placementMode.isVisible && selectedPointIndex === null) {
+                const currentEffectType = effectTypeSelector.value;
+                const currentRadius = parseInt(effectRadiusSlider.value);
+                const currentOpacity = parseFloat(effectOpacitySlider.value) / 100;
+                const currentRotation = parseInt(effectRotationSlider.value);
+                const currentLabel = placementMarkerTagInput.value;
+                
+                // Create a temporary point object for drawing preview
+                const previewPoint = {
+                    x: placementMode.x,
+                    y: placementMode.y,
+                    effectType: currentEffectType,
+                    radius: currentRadius,
+                    opacity: currentOpacity,
+                    rotation: currentRotation,
+                    label: currentLabel,
+                    icon: effectTypeSelector.options[effectTypeSelector.selectedIndex].value === 'marker' ? 
+                            editMarkerIconSelector.value : 
+                            null 
+                };
 
-            clearButton.disabled = false;
-            downloadButton.disabled = false;
+                // Draw the preview effect at slightly higher opacity
+                drawEffect(previewPoint, ctx, cellPixelSize, deltaTime);
+                
+                // Add a crosshair/placement visual at the center
+                ctx.save();
+                ctx.translate(displayCoordinates(placementMode.x, placementMode.y).x, displayCoordinates(placementMode.x, placementMode.y).y);
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+                ctx.lineWidth = 1;
+                ctx.setLineDash([2, 4]);
+                ctx.beginPath();
+                ctx.moveTo(-10, 0);
+                ctx.lineTo(10, 0);
+                ctx.moveTo(0, -10);
+                ctx.lineTo(0, 10);
+                ctx.stroke();
+                ctx.restore();
+            }
+
+            updateScaleOverlay();
         }
+
+        // --- HANDLERS AND EVENT LISTENERS ---
 
         /**
-         * Creates a temporary canvas, draws the base image and the effects overlay,
-         * and triggers a download of the resulting composite image using original image dimensions.
+         * FIX: Modified to ensure updateCanvasDimensions is called even if the image is cached,
+         * which can prevent baseImage.onload from firing reliably.
          */
-        function downloadEffectsMap() {
-            if (dataPoints.length === 0) return;
-
-            const originalWidth = baseImage.naturalWidth;
-            const originalHeight = baseImage.naturalHeight;
-
-            const tempCanvas = document.createElement('canvas');
-            const tempCtx = tempCanvas.getContext('2d');
-
-            // 2. Set temporary canvas dimensions to match the ORIGINAL image size
-            tempCanvas.width = originalWidth;
-            tempCanvas.height = originalHeight;
-
-            // 3. Draw the original image onto the temporary canvas
-            tempCtx.drawImage(baseImage, 0, 0, originalWidth, originalHeight);
-
-            // 4. Redraw the effects on the temporary canvas using high-resolution coordinates
-            // This is crucial to ensure the effects look sharp and detailed at the original image size.
-            const highResScale = originalWidth / 1000;
-
-            dataPoints.forEach(point => drawEffect(point, tempCtx, highResScale));
-            
-            // 5. Convert to data URL and trigger download
-            try {
-                const dataURL = tempCanvas.toDataURL('image/png');
-                const a = document.createElement('a');
-                a.href = dataURL;
-                a.download = 'dnd-battlemap-effects.png';
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-            } catch (e) {
-                console.error("Error generating or downloading image:", e);
-                const msg = document.createElement('div');
-                msg.textContent = "Could not download image. Check console for details.";
-                msg.style.cssText = 'position: fixed; top: 20px; right: 20px; background: red; color: white; padding: 10px; border-radius: 5px; z-index: 1000;';
-                document.body.appendChild(msg);
-                setTimeout(() => document.body.removeChild(msg), 4000);
-            } finally {
-                 tempCanvas.remove();
-            }
-        }
-
-        // --- Event Listeners ---
-
-        imageUpload.addEventListener('change', (event) => {
-            const file = event.target.files[0];
+        function handleImageUpload(e) {
+            const file = e.target.files[0];
             if (file) {
                 const reader = new FileReader();
-                reader.onload = (e) => {
-                    baseImage.onload = () => {
-                        baseImage.style.width = '100%';
-                        baseImage.style.height = 'auto';
+                reader.onload = function(event) {
+                    baseImage.src = event.target.result;
 
+                    // Define the success action in a reusable function
+                    const handleImageLoaded = () => {
+                        // Crucially, remove the listener to prevent memory leaks/multiple calls
+                        baseImage.onload = null; 
+                        
+                        // Show the image container and controls
                         imageContainer.classList.remove('hidden');
                         placeholderMessage.classList.add('hidden');
-
-                        resizeCanvas();
-                        clearEffects(); 
-
-                        window.removeEventListener('resize', resizeCanvas); 
-                        window.addEventListener('resize', resizeCanvas);
+                        clearButton.disabled = false;
+                        downloadButton.disabled = false;
+                        
+                        // Set the canvas dimensions to match the loaded image
+                        updateCanvasDimensions();
+                        // Start the animation loop if needed
+                        startAnimationLoop(); 
                     };
-                    baseImage.src = e.target.result;
+
+                    // 1. Assign the listener for when the image loads asynchronously
+                    baseImage.onload = handleImageLoaded;
+
+                    // 2. Check if the image is already complete (from cache or synchronous load)
+                    if (baseImage.complete && baseImage.naturalWidth !== 0) {
+                        handleImageLoaded();
+                    }
                 };
                 reader.readAsDataURL(file);
             }
-        });
-
-        canvas.addEventListener('click', addDataPoint);
-        clearButton.addEventListener('click', clearEffects);
-        downloadButton.addEventListener('click', downloadEffectsMap);
-
-        // Initial setup for the placeholder image dimensions
-        baseImage.onload = () => {
-            if (baseImage.src.includes('placehold.co')) {
-                imageContainer.classList.remove('hidden');
-                placeholderMessage.classList.remove('hidden');
-                resizeCanvas();
-            }
-        };
-
-        if (baseImage.complete) {
-            baseImage.onload();
         }
-    </script>
 
+        /**
+         * Logic to place a new effect and optionally select it for editing.
+         * @param {Object} normalizedClick - The normalized coordinates {x, y}.
+         * @param {boolean} selectForEdit - Whether to select the new point immediately.
+         */
+        function placeEffect(normalizedClick, selectForEdit = false) {
+            const isRotatable = ['line', 'cone', 'lightning'].includes(effectTypeSelector.value);
+            
+            const newPoint = {
+                x: normalizedClick.x,
+                y: normalizedClick.y,
+                effectType: effectTypeSelector.value,
+                radius: parseInt(effectRadiusSlider.value),
+                opacity: parseFloat(effectOpacitySlider.value) / 100,
+                rotation: isRotatable ? parseInt(effectRotationSlider.value) : 0,
+                label: placementMarkerTagInput.value.trim(),
+                icon: effectTypeSelector.options[effectTypeSelector.selectedIndex].value === 'marker' ? 
+                        editMarkerIconSelector.value : 
+                        null 
+            };
+
+            dataPoints.push(newPoint);
+            placementMarkerTagInput.value = ''; // Clear label after placement
+            
+            if (selectForEdit) {
+                selectedPointIndex = dataPoints.length - 1;
+                toggleEditMode(true);
+                updateEditControls(newPoint);
+            }
+            
+            // Redraw and ensure animation is running if needed
+            redraw();
+            startAnimationLoop(); 
+        }
+
+        function handleCanvasClick(e) {
+            if (baseImage.src.includes('placehold.co')) return;
+
+            const rect = canvas.getBoundingClientRect();
+            const clickX = e.clientX - rect.left;
+            const clickY = e.clientY - rect.top;
+            const normalizedClick = normalizeCoordinates(clickX, clickY);
+
+            // 1. If an effect is currently selected, handle drag release (already done in mouseup) or deselect
+            if (selectedPointIndex !== null) {
+                // If we were just dragging, ignore the click (it was a drag end)
+                if (isDragging) {
+                    isDragging = false;
+                    return;
+                }
+                
+                // If it was a clean click, deselect the item and exit edit mode
+                deselectMarkerButton.click();
+                return;
+            }
+
+            // 2. Check for object selection (if we aren't dragging or placing)
+            let foundIndex = -1;
+            const cellPixelSize = get5ftCellPixelSize(canvas.width);
+
+            for (let i = dataPoints.length - 1; i >= 0; i--) {
+                const point = dataPoints[i];
+                const coords = displayCoordinates(point.x, point.y);
+
+                const distance = Math.sqrt(
+                    Math.pow(clickX - coords.x, 2) + Math.pow(clickY - coords.y, 2)
+                );
+
+                // Give markers a simple fixed-size hit area, other effects a dynamic one
+                const hitRadius = point.effectType === 'marker' ? 30 : cellPixelSize * 0.5;
+
+                if (distance <= hitRadius) {
+                    foundIndex = i;
+                    break;
+                }
+            }
+
+            if (foundIndex !== -1) {
+                // Item found, select it and enter edit mode
+                selectedPointIndex = foundIndex;
+                toggleEditMode(true);
+                updateEditControls(dataPoints[selectedPointIndex]);
+                redraw();
+                return;
+            }
+
+            // 3. If no item was selected, place the new effect
+            if (selectedPointIndex === null) {
+                placeEffect(normalizedClick, false);
+            }
+        }
+        
+        /**
+         * Handles double click to place and immediately select/edit the new effect.
+         */
+        function handleCanvasDoubleClick(e) {
+            if (baseImage.src.includes('placehold.co') || selectedPointIndex !== null) return;
+            
+            const rect = canvas.getBoundingClientRect();
+            const dblClickX = e.clientX - rect.left;
+            const dblClickY = e.clientY - rect.top;
+            const normalizedClick = normalizeCoordinates(dblClickX, dblClickY);
+            
+            // Place the effect and immediately select it for editing
+            placeEffect(normalizedClick, true);
+        }
+
+        function handleMouseDown(e) {
+            if (baseImage.src.includes('placehold.co')) return;
+            isMousePressed = true;
+            const rect = canvas.getBoundingClientRect();
+            clickStartX = e.clientX - rect.left;
+            clickStartY = e.clientY - rect.top;
+
+            // If an item is selected, we initiate a drag
+            if (selectedPointIndex !== null) {
+                const point = dataPoints[selectedPointIndex];
+                const coords = displayCoordinates(point.x, point.y);
+                dragOffsetX = clickStartX - coords.x;
+                dragOffsetY = clickStartY - coords.y;
+                isDragging = false; // Will become true on mousemove
+            }
+        }
+
+        function handleMouseMove(e) {
+            if (baseImage.src.includes('placehold.co')) return;
+
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+            const normalizedMouse = normalizeCoordinates(mouseX, mouseY);
+
+            // Update placement preview coordinates
+            placementMode.x = normalizedMouse.x;
+            placementMode.y = normalizedMouse.y;
+            placementMode.isVisible = true;
+
+            // Handle dragging of a selected object
+            if (isMousePressed && selectedPointIndex !== null) {
+                isDragging = true;
+                const point = dataPoints[selectedPointIndex];
+                
+                // Calculate new position based on drag offset
+                const newDisplayX = mouseX - dragOffsetX;
+                const newDisplayY = mouseY - dragOffsetY;
+                
+                const newNormalized = normalizeCoordinates(newDisplayX, newDisplayY);
+                
+                point.x = newNormalized.x;
+                point.y = newNormalized.y;
+                
+                // Redraw immediately for smooth dragging
+                redraw();
+                return;
+            }
+
+            // If not dragging, just redraw for the placement preview
+            redraw();
+        }
+
+        function handleMouseUp(e) {
+            if (baseImage.src.includes('placehold.co')) return;
+            
+            // Check if this was a drag operation that just finished
+            if (isMousePressed && selectedPointIndex !== null && isDragging) {
+                isDragging = false;
+                isMousePressed = false;
+                // Redraw to finalize the position (the coordinates are already updated in mousemove)
+                redraw();
+                return; 
+            }
+
+            isMousePressed = false;
+            // Clear placement preview if no item is selected
+            if (selectedPointIndex === null) {
+                placementMode.isVisible = false;
+            }
+            redraw();
+        }
+
+
+        // --- UI STATE MANAGEMENT ---
+
+        function toggleEditMode(isEditing) {
+            if (isEditing) {
+                newPlacementControls.classList.add('hidden');
+                markerEditControls.classList.remove('hidden', 'flex-col');
+                markerEditControls.classList.add('flex');
+                canvas.style.cursor = 'grab';
+            } else {
+                selectedPointIndex = null;
+                newPlacementControls.classList.remove('hidden');
+                markerEditControls.classList.add('hidden', 'flex-col');
+                markerEditControls.classList.remove('flex');
+                canvas.style.cursor = 'crosshair';
+                redraw();
+            }
+            // Re-evaluate if animation loop needs to run after mode change
+            startAnimationLoop();
+        }
+
+        function updateEditControls(point) {
+            const isMarker = point.effectType === 'marker';
+            // Lightning is now a circular AoE, but we allow rotation for cool visual spinning effects
+            const isRotatable = ['line', 'cone', 'lightning'].includes(point.effectType); 
+            
+            // Update Info
+            selectedMarkerInfo.textContent = `Type: ${point.effectType.toUpperCase()} | Size: ${point.radius}${mapScale.unit}`;
+
+            // Handle Marker-specific fields
+            editIconContainer.classList.toggle('hidden', !isMarker);
+            editTagContainer.classList.toggle('hidden', !isMarker);
+            if (isMarker) {
+                editMarkerIconSelector.value = point.icon || '📍';
+                editMarkerTagInput.value = point.label || '';
+            }
+
+            // Handle Rotation field
+            editRotationContainer.classList.toggle('hidden', !isRotatable);
+            if (isRotatable) {
+                editRotationSlider.value = point.rotation;
+                editRotationValueSpan.textContent = `${point.rotation}°`;
+            }
+
+            // Handle Size/Radius field (common for all types)
+            editMarkerSizeSlider.value = point.radius;
+            editSizeValueSpan.textContent = `${point.radius}${mapScale.unit}`;
+        }
+        
+        // Listener for edits to the selected point
+        function handleEditControlChange(e) {
+            if (selectedPointIndex === null) return;
+            const point = dataPoints[selectedPointIndex];
+            
+            if (e.target === editMarkerSizeSlider) {
+                point.radius = parseInt(editMarkerSizeSlider.value);
+            } else if (e.target === editRotationSlider) {
+                point.rotation = parseInt(editRotationSlider.value);
+            } else if (e.target === editMarkerTagInput) {
+                point.label = editMarkerTagInput.value.trim();
+            } else if (e.target === editMarkerIconSelector) {
+                point.icon = editMarkerIconSelector.value;
+            }
+            
+            // Update UI elements and redraw
+            updateEditControls(point);
+            redraw();
+            startAnimationLoop(); // Ensure animation is running if effects change
+        }
+
+        function updateScaleOverlay() {
+            mapScaleOverlay.style.opacity = showScaleOverlay ? '1' : '0';
+            mapScaleOverlay.style.zIndex = showScaleOverlay ? '10' : '-1';
+            
+            const realWorldGridUnit = mapScale.totalSize / GRID_LINE_COUNT;
+            const density = gridDensitySlider.value / 100;
+            const displayGridSize = (realWorldGridUnit / density).toFixed(1);
+
+            document.getElementById('overlay-total-size').textContent = `${mapScale.totalSize} ${mapScale.unit} x ${mapScale.totalSize} ${mapScale.unit}`;
+            document.getElementById('overlay-grid-size').textContent = `${displayGridSize} ${mapScale.unit} per line`;
+            document.getElementById('overlay-density').textContent = `${gridDensitySlider.value}%`;
+        }
+
+        function handleControlChanges(e) {
+            // Update placement mode UI values
+            if (e.target === effectRadiusSlider) {
+                radiusValueSpan.textContent = `${effectRadiusSlider.value}${mapScale.unit}`;
+            } else if (e.target === effectOpacitySlider) {
+                document.getElementById('opacity-value').textContent = `${effectOpacitySlider.value}%`;
+            } else if (e.target === effectRotationSlider) {
+                rotationValueSpan.textContent = `${effectRotationSlider.value}°`;
+            } else if (e.target === gridDensitySlider) {
+                gridDensityValueSpan.textContent = `${gridDensitySlider.value}%`;
+                gridState.density = parseFloat(gridDensitySlider.value) / 100;
+            } else if (e.target === gridOpacitySlider) {
+                gridState.opacity = parseFloat(gridOpacitySlider.value) / 100;
+            } else if (e.target === gridColourInput) {
+                gridState.colour = gridColourInput.value;
+            } else if (e.target === mapLengthInput || e.target === mapUnitSelect) {
+                mapScale.totalSize = parseInt(mapLengthInput.value);
+                mapScale.unit = mapUnitSelect.value;
+            }
+
+            // Handle control visibility based on effect type
+            if (e.target === effectTypeSelector) {
+                const type = effectTypeSelector.value;
+                const isMarker = type === 'marker';
+                const isRotatable = ['line', 'cone', 'lightning'].includes(type);
+
+                // Marker specific inputs
+                placementMarkerInputContainer.classList.toggle('hidden', !isMarker);
+
+                // Rotation input
+                placementRotationContainer.classList.toggle('hidden', !isRotatable);
+
+                // Radius input label update
+                const radiusLabel = isMarker ? 'Icon Scale' : 'Size (5ft steps)';
+                document.querySelector('[for="effect-radius"]').textContent = `${radiusLabel}: ${radiusValueSpan.textContent}`;
+                
+                // Reset rotation value on type change
+                if (!isRotatable) {
+                    effectRotationSlider.value = 0;
+                    rotationValueSpan.textContent = '0°';
+                }
+            }
+
+            redraw();
+            startAnimationLoop(); // Ensure animation is running if the selected effect type is animated
+        }
+
+        function handleDownload() {
+            if (baseImage.src.includes('placehold.co')) {
+                // Using custom message box instead of alert()
+                const modal = document.getElementById('errorModal');
+                if (modal) {
+                    const errorText = document.getElementById('errorText');
+                    errorText.textContent = 'Please upload a map first.';
+                    modal.classList.remove('hidden');
+                    modal.classList.add('flex');
+                }
+                return;
+            }
+
+            // 1. Create a temporary composite canvas
+            const finalCanvas = document.createElement('canvas');
+            finalCanvas.width = baseImage.naturalWidth;
+            finalCanvas.height = baseImage.naturalHeight;
+            const finalCtx = finalCanvas.getContext('2d');
+
+            // 2. Draw the base image
+            finalCtx.drawImage(baseImage, 0, 0, finalCanvas.width, finalCanvas.height);
+
+            // 3. Draw the grid (scaled to natural image size)
+            // Note: We need to temporarily set the canvas size for redraw to correctly calculate pixel sizes
+            const originalCanvasWidth = canvas.width;
+            const originalCanvasHeight = canvas.height;
+            canvas.width = finalCanvas.width;
+            canvas.height = finalCanvas.height;
+            
+            // Draw grid lines (must re-use logic adapted to final canvas size)
+            if (gridState.isVisible) {
+                finalCtx.save();
+                finalCtx.strokeStyle = gridState.colour;
+                finalCtx.lineWidth = 1;
+                finalCtx.globalAlpha = gridState.opacity;
+
+                const gridDensityFactor = gridDensitySlider.value / 100;
+                const pixelStep = (finalCanvas.width / GRID_LINE_COUNT) * (1 / gridDensityFactor);
+
+                for (let i = 0; i * pixelStep <= finalCanvas.width + 1; i++) {
+                    finalCtx.beginPath();
+                    finalCtx.moveTo(i * pixelStep, 0);
+                    finalCtx.lineTo(i * pixelStep, finalCanvas.height);
+                    finalCtx.stroke();
+                }
+                for (let i = 0; i * pixelStep <= finalCanvas.height + 1; i++) {
+                    finalCtx.beginPath();
+                    finalCtx.moveTo(0, i * pixelStep);
+                    finalCtx.lineTo(finalCanvas.width, i * pixelStep);
+                    finalCtx.stroke();
+                }
+                finalCtx.restore();
+            }
+
+            // 4. Draw all effects (scaled to natural image size)
+            // NOTE: We pass deltaTime = 0 for the final image capture to avoid random animation state artifacts.
+            const finalCellPixelSize = get5ftCellPixelSize(finalCanvas.width);
+
+            dataPoints.forEach(point => {
+                // Pass true for isSelected to ensure drawing logic doesn't skip
+                // Must ensure selection glow is OFF for final download, so clear temporary flag
+                const originalSelectedState = point.isSelected;
+                point.isSelected = false; 
+                drawEffect(point, finalCtx, finalCellPixelSize, 0);
+                point.isSelected = originalSelectedState;
+            });
+            
+            // Restore original canvas size
+            canvas.width = originalCanvasWidth;
+            canvas.height = originalCanvasHeight;
+
+            // 5. Trigger download
+            const link = document.createElement('a');
+            link.download = `battlemap_${Date.now()}.png`;
+            link.href = finalCanvas.toDataURL('image/png');
+            link.click();
+        }
+
+
+        // --- INITIALIZATION & BINDINGS ---
+
+        function setupListeners() {
+            // Main Input Handlers
+            imageUpload.addEventListener('change', handleImageUpload);
+            clearButton.addEventListener('click', () => {
+                dataPoints = [];
+                toggleEditMode(false);
+                redraw();
+            });
+            downloadButton.addEventListener('click', handleDownload);
+            window.addEventListener('resize', updateCanvasDimensions);
+            // Removed redundant baseImage.addEventListener('load', ...) here
+
+            // Map Control Listeners
+            [mapLengthInput, mapUnitSelect, gridToggle, gridDensitySlider, gridColourInput, gridOpacitySlider].forEach(el => {
+                el.addEventListener('input', handleControlChanges);
+            });
+            gridToggle.addEventListener('change', () => {
+                gridState.isVisible = gridToggle.checked;
+                redraw();
+            });
+            scaleOverlayToggle.addEventListener('click', () => {
+                showScaleOverlay = !showScaleOverlay;
+                scaleOverlayToggle.textContent = showScaleOverlay ? "Hide Scale Overlay" : "Show Scale Overlay";
+                updateScaleOverlay();
+            });
+
+
+            // Placement Control Listeners
+            [effectTypeSelector, effectRadiusSlider, effectOpacitySlider, effectRotationSlider, placementMarkerTagInput].forEach(el => {
+                el.addEventListener('input', handleControlChanges);
+            });
+            
+            // Edit Control Listeners
+            [editMarkerSizeSlider, editRotationSlider, editMarkerTagInput, editMarkerIconSelector].forEach(el => {
+                el.addEventListener('input', handleEditControlChange);
+            });
+            deleteMarkerButton.addEventListener('click', () => {
+                if (selectedPointIndex !== null) {
+                    dataPoints.splice(selectedPointIndex, 1);
+                    toggleEditMode(false);
+                }
+            });
+            deselectMarkerButton.addEventListener('click', () => {
+                toggleEditMode(false);
+            });
+
+
+            // Canvas Interaction Listeners
+            canvas.addEventListener('mousedown', handleMouseDown);
+            canvas.addEventListener('mousemove', handleMouseMove);
+            canvas.addEventListener('mouseup', handleMouseUp);
+            canvas.addEventListener('click', handleCanvasClick); // Handle click for placement/selection
+            canvas.addEventListener('dblclick', handleCanvasDoubleClick); // Handle double-click for place+edit
+            canvas.addEventListener('mouseleave', () => {
+                placementMode.isVisible = false;
+                isMousePressed = false;
+                isDragging = false;
+                redraw();
+            });
+        }
+        
+        // Initial setup on window load
+        window.onload = () => {
+            setupListeners();
+            // Initial redraw to display placeholder or initial state
+            handleControlChanges({ target: effectTypeSelector }); // Initialize effect type controls
+            redraw();
+            // Start the loop only if we have animated content initially (or when content is added)
+            startAnimationLoop();
+        };
+    </script>
 </body>
 </html>
