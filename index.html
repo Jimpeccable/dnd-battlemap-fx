@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>D&D Battlemap Effect Overlay</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Set the font and ensure body fills the viewport */
+        body {
+            font-family: 'Inter', sans-serif;
+            min-height: 100vh;
+            background-color: #1f2937; /* Darker D&D theme */
+            color: #f3f4f6;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        /* Container for the image and canvas */
+        .image-container {
+            position: relative;
+            max-width: 100%;
+            height: auto;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+            background-color: #374151;
+            margin-top: 2rem;
+            max-height: 80vh; 
+        }
+
+        /* The base image */
+        #base-image {
+            display: block;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        /* The effects canvas overlay */
+        #effect-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            pointer-events: all; 
+            cursor: crosshair;
+            opacity: 1; /* Full opacity for effects */
+        }
+
+        /* Styling for the file input */
+        input[type="file"] {
+            display: none;
+        }
+
+        .custom-file-upload {
+            border: 2px dashed #93c5fd;
+            color: #3b82f6;
+            background-color: #eff6ff;
+            padding: 1rem 2rem;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+            text-align: center;
+            font-weight: 600;
+        }
+
+        .custom-file-upload:hover {
+            background-color: #dbeafe;
+            border-color: #60a5fa;
+        }
+    </style>
+</head>
+<body class="p-4 sm:p-8">
+
+    <header class="text-center mb-6 w-full max-w-4xl">
+        <h1 class="text-3xl font-bold text-yellow-300 mb-2">D&D Battlemap Spell Effects</h1>
+        <!-- UPDATED: Added Jimpeccable credit -->
+        <p class="text-gray-400 mb-2">Effects inspired by <a href="https://www.patreon.com/Jimpeccable" target="_blank" class="text-blue-400 hover:text-blue-300 underline">Jimpeccable on Patreon</a>.</p>
+        <p class="text-gray-400">Upload your map and place spell/area effects in real-time. Use the controls below to select the effect type and size.</p>
+    </header>
+
+    <!-- Controls Panel -->
+    <div class="bg-gray-700 p-4 rounded-xl shadow-lg w-full max-w-4xl mb-6 flex flex-col md:flex-row flex-wrap justify-between items-center gap-4">
+        
+        <!-- File Upload -->
+        <label for="image-upload" class="custom-file-upload flex items-center gap-2 w-full md:w-auto">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+            Upload Map (JPEG/PNG)
+        </label>
+        <input type="file" id="image-upload" accept="image/*">
+
+        <!-- Effect Selector -->
+        <div class="flex flex-col w-full sm:w-1/2 md:w-auto flex-grow">
+            <label for="effect-type" class="text-gray-300 font-medium mb-1">Effect Type:</label>
+            <select id="effect-type" class="p-2 rounded bg-gray-600 border border-gray-500 text-white shadow-inner">
+                <option value="fire">🔥 Fireball/Burning</option>
+                <option value="cold">❄️ Cold/Ice Storm</option>
+                <option value="poison">🤢 Poison/Acid Cloud</option>
+                <option value="holy">✨ Holy/Healing Light</option>
+                <option value="lightning">⚡ Lightning Bolt/Shock</option>
+                <option value="necrotic">💀 Necrotic/Shadow</option>
+                <option value="aoe">🎯 Generic AoE Circle</option>
+            </select>
+        </div>
+
+        <!-- Radius/Size Slider -->
+        <div class="flex flex-col w-full sm:w-1/2 md:w-auto flex-grow">
+            <label for="effect-radius" class="text-gray-300 font-medium mb-1">Radius/Size (5ft steps): <span id="radius-value">3</span></label>
+            <input type="range" id="effect-radius" min="1" max="10" value="3" class="w-full">
+        </div>
+
+        <!-- Opacity Slider -->
+        <div class="flex flex-col w-full sm:w-1/2 md:w-auto flex-grow">
+            <!-- DEFAULT VALUE IS NOW 25% -->
+            <label for="effect-opacity" class="text-gray-300 font-medium mb-1">Opacity: <span id="opacity-value">25</span>%</label>
+            <input type="range" id="effect-opacity" min="10" max="100" value="25" class="w-full">
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="flex gap-4 w-full md:w-auto justify-center md:justify-start mt-2 md:mt-0">
+            <button id="clear-button" class="px-4 py-2 bg-red-600 text-white font-semibold rounded-lg shadow-md hover:bg-red-700 transition duration-150 ease-in-out" disabled>
+                Clear Effects
+            </button>
+            <button id="download-button" class="px-4 py-2 bg-green-500 text-white font-semibold rounded-lg shadow-md hover:bg-green-600 transition duration-150 ease-in-out" disabled>
+                Download Map + Effects
+            </button>
+        </div>
+    </div>
+
+    <!-- Image and Canvas Container -->
+    <div id="image-container" class="image-container hidden">
+        <img id="base-image" alt="D&D Battlemap" src="https://placehold.co/800x600/273a4b/fff?text=Upload+Your+Map+to+Begin" onerror="this.src='https://placehold.co/800x600/273a4b/fff?text=Map+Load+Error'" />
+        <canvas id="effect-canvas"></canvas>
+    </div>
+
+    <!-- Instructions/Placeholder -->
+    <div id="placeholder-message" class="w-full max-w-4xl p-8 bg-gray-700 rounded-xl shadow-lg text-center">
+        <h3 class="text-xl font-semibold text-white mb-2">Welcome to the Battlemap Generator!</h3>
+        <p class="text-gray-400">Upload your image map. Then, select a spell effect and size/opacity above, and click on the map to place the area of effect.</p>
+    </div>
+
+    <script>
+        const imageUpload = document.getElementById('image-upload');
+        const baseImage = document.getElementById('base-image');
+        const canvas = document.getElementById('effect-canvas');
+        const clearButton = document.getElementById('clear-button');
+        const downloadButton = document.getElementById('download-button');
+        const effectTypeSelector = document.getElementById('effect-type');
+        const effectRadiusSlider = document.getElementById('effect-radius');
+        const effectOpacitySlider = document.getElementById('effect-opacity');
+        const radiusValueSpan = document.getElementById('radius-value');
+        const opacityValueSpan = document.getElementById('opacity-value');
+        const imageContainer = document.getElementById('image-container');
+        const placeholderMessage = document.getElementById('placeholder-message');
+        const ctx = canvas.getContext('2d');
+
+        // Stores the coordinates and properties of all placed effects
+        let dataPoints = [];
+        // Normalized Radius: maps the slider value (1-10) to an internal normalized size (50-500)
+        const BASE_RADIUS_NORMALIZED = 50; 
+
+        // Update slider displays when sliders move
+        effectRadiusSlider.addEventListener('input', () => {
+            radiusValueSpan.textContent = effectRadiusSlider.value;
+        });
+        effectOpacitySlider.addEventListener('input', () => {
+            opacityValueSpan.textContent = effectOpacitySlider.value;
+        });
+
+        /**
+         * Clears all effect data and redraws the canvas
+         */
+        function clearEffects() {
+            dataPoints = [];
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            clearButton.disabled = true;
+            downloadButton.disabled = true;
+        }
+
+        /**
+         * Sets the canvas dimensions to match the displayed image dimensions.
+         */
+        function resizeCanvas() {
+            const rect = imageContainer.getBoundingClientRect();
+            canvas.width = rect.width;
+            canvas.height = rect.height;
+            imageContainer.style.width = `${rect.width}px`;
+            imageContainer.style.height = `${rect.height}px`;
+            drawEffects(); // Redraw effects after resizing
+        }
+
+        /**
+         * Draws a specific effect based on its type and properties.
+         * @param {Object} point - The effect data point {x, y, effectType, radius, opacity}
+         * @param {CanvasRenderingContext2D} targetCtx - The context to draw on (main or temp for download)
+         * @param {number} scaleFactor - Scale factor for coordinates and radius (e.g., pixelScale or highResScale)
+         */
+        function drawEffect(point, targetCtx, scaleFactor) {
+            // Calculate pixel position and scaled radius
+            const x = point.x * scaleFactor;
+            const y = point.y * scaleFactor;
+            const radius = point.radius * BASE_RADIUS_NORMALIZED * scaleFactor;
+            const opacity = point.opacity;
+
+            targetCtx.save(); // Save the current canvas state before applying custom styles
+            targetCtx.globalAlpha = opacity; // Apply effect opacity
+
+            // Reset composition mode
+            targetCtx.globalCompositeOperation = 'source-over'; 
+            targetCtx.shadowBlur = 0;
+
+            switch (point.effectType) {
+                case 'fire':
+                    // High-Detail Fire: White core, orange gradient, wide yellow glow
+                    targetCtx.globalCompositeOperation = 'lighter'; 
+                    targetCtx.shadowColor = 'rgba(255, 165, 0, 1)'; // Orange glow color
+                    targetCtx.shadowBlur = radius * 0.4; // Wide, soft glow
+
+                    const fireGradient = targetCtx.createRadialGradient(x, y, radius * 0.05, x, y, radius * 0.8);
+                    fireGradient.addColorStop(0, 'rgba(255, 255, 100, 1.0)'); // White-hot core
+                    fireGradient.addColorStop(0.3, 'rgba(255, 140, 0, 0.9)');  // Deep Orange
+                    fireGradient.addColorStop(0.7, 'rgba(255, 0, 0, 0.4)');    // Red Haze
+                    fireGradient.addColorStop(1, 'rgba(255, 0, 0, 0.0)');      // Transparent edge
+                    
+                    targetCtx.fillStyle = fireGradient;
+                    targetCtx.beginPath();
+                    targetCtx.arc(x, y, radius * 0.8, 0, Math.PI * 2); 
+                    targetCtx.fill();
+                    break;
+
+                case 'cold':
+                    // High-Detail Cold: Crystalline core, soft blue mist, icy glow
+                    targetCtx.globalCompositeOperation = 'source-over'; 
+                    targetCtx.shadowColor = 'rgba(173, 216, 230, 0.8)'; // Icy white glow
+                    targetCtx.shadowBlur = radius * 0.2; 
+                    
+                    const coldGradient = targetCtx.createRadialGradient(x, y, radius * 0.05, x, y, radius);
+                    coldGradient.addColorStop(0, 'rgba(240, 248, 255, 0.9)'); // White crystalline core
+                    coldGradient.addColorStop(0.4, 'rgba(0, 191, 255, 0.6)'); // Deep Sky Blue
+                    coldGradient.addColorStop(0.8, 'rgba(0, 100, 255, 0.2)'); // Dark Blue Mist
+                    coldGradient.addColorStop(1, 'rgba(0, 0, 139, 0.0)');     // Fully transparent
+                    
+                    targetCtx.fillStyle = coldGradient;
+                    targetCtx.beginPath();
+                    targetCtx.arc(x, y, radius, 0, Math.PI * 2);
+                    targetCtx.fill();
+                    
+                    // Draw a sharp, lighter crystalline edge on top (no shadow)
+                    targetCtx.shadowBlur = 0;
+                    targetCtx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+                    targetCtx.lineWidth = radius * 0.01;
+                    targetCtx.beginPath();
+                    targetCtx.arc(x, y, radius * 0.9, 0, Math.PI * 2);
+                    targetCtx.stroke();
+                    break;
+                
+                case 'poison':
+                    // High-Detail Poison: Opaque core, hazy green vapor, sickly yellow shimmer
+                    targetCtx.globalCompositeOperation = 'source-over';
+                    targetCtx.shadowColor = 'rgba(124, 252, 0, 0.8)'; // Lime green glow
+                    targetCtx.shadowBlur = radius * 0.3;
+
+                    const poisonGradient = targetCtx.createRadialGradient(x, y, radius * 0.1, x, y, radius);
+                    poisonGradient.addColorStop(0, 'rgba(124, 252, 0, 0.7)'); // Lime Green Center
+                    poisonGradient.addColorStop(0.5, 'rgba(50, 205, 50, 0.6)'); // Medium Green
+                    poisonGradient.addColorStop(0.9, 'rgba(0, 100, 0, 0.2)'); // Dark Green Haze
+                    poisonGradient.addColorStop(1, 'rgba(0, 100, 0, 0.0)'); // Fully transparent edge
+                    
+                    targetCtx.fillStyle = poisonGradient;
+                    targetCtx.beginPath();
+                    targetCtx.arc(x, y, radius, 0, Math.PI * 2);
+                    targetCtx.fill();
+
+                    // Inner core detail
+                    targetCtx.shadowBlur = 0;
+                    targetCtx.fillStyle = 'rgba(255, 255, 0, 0.1)'; // Yellowish inner shimmer
+                    targetCtx.beginPath();
+                    targetCtx.arc(x, y, radius * 0.4, 0, Math.PI * 2);
+                    targetCtx.fill();
+                    break;
+
+                case 'holy':
+                    // High-Detail Holy: Intense white core, wide golden aura, additive glow
+                    targetCtx.globalCompositeOperation = 'lighter'; 
+                    targetCtx.shadowColor = 'rgba(255, 215, 0, 1.0)'; // Gold glow
+                    targetCtx.shadowBlur = radius * 0.5;
+
+                    const holyGradient = targetCtx.createRadialGradient(x, y, radius * 0.05, x, y, radius);
+                    holyGradient.addColorStop(0, 'rgba(255, 255, 200, 1.0)'); // Bright White Core
+                    holyGradient.addColorStop(0.4, 'rgba(255, 223, 0, 0.7)'); // Gold Mid
+                    holyGradient.addColorStop(0.8, 'rgba(255, 255, 255, 0.3)'); // Soft White Glow
+                    holyGradient.addColorStop(1, 'rgba(255, 255, 255, 0.0)'); // Fully transparent edge
+                    
+                    targetCtx.fillStyle = holyGradient;
+                    targetCtx.beginPath();
+                    targetCtx.arc(x, y, radius, 0, Math.PI * 2);
+                    targetCtx.fill();
+                    break;
+                
+                case 'lightning':
+                    // New Lightning: Sharp inner bolt, hazy violet-blue glow
+                    targetCtx.globalCompositeOperation = 'lighter';
+                    targetCtx.shadowColor = 'rgba(0, 191, 255, 1)'; // Deep blue glow
+                    targetCtx.shadowBlur = radius * 0.3;
+
+                    const lightningGradient = targetCtx.createRadialGradient(x, y, radius * 0.05, x, y, radius);
+                    lightningGradient.addColorStop(0, 'rgba(255, 255, 255, 1.0)'); // White-hot strike center
+                    lightningGradient.addColorStop(0.4, 'rgba(100, 149, 237, 0.8)'); // Cornflower Blue
+                    lightningGradient.addColorStop(0.8, 'rgba(75, 0, 130, 0.3)'); // Deep Violet Haze
+                    lightningGradient.addColorStop(1, 'rgba(0, 0, 255, 0.0)'); // Transparent edge
+                    
+                    targetCtx.fillStyle = lightningGradient;
+                    targetCtx.beginPath();
+                    targetCtx.arc(x, y, radius, 0, Math.PI * 2);
+                    targetCtx.fill();
+
+                    // Optional: Inner sharp "bolt" line (no shadow)
+                    targetCtx.shadowBlur = 0;
+                    targetCtx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+                    targetCtx.lineWidth = radius * 0.02;
+                    targetCtx.beginPath();
+                    targetCtx.arc(x, y, radius * 0.4, 0, Math.PI * 2);
+                    targetCtx.stroke();
+                    break;
+                
+                case 'necrotic':
+                    // New Necrotic: Dark void core, sickly smoky aura, violet glow
+                    targetCtx.globalCompositeOperation = 'source-over'; 
+                    targetCtx.shadowColor = 'rgba(138, 43, 226, 0.8)'; // Deep violet glow
+                    targetCtx.shadowBlur = radius * 0.35;
+
+                    const necroGradient = targetCtx.createRadialGradient(x, y, radius * 0.1, x, y, radius);
+                    necroGradient.addColorStop(0, 'rgba(0, 0, 0, 0.9)');   // Black Void Center
+                    necroGradient.addColorStop(0.5, 'rgba(138, 43, 226, 0.5)'); // Violet Energy
+                    necroGradient.addColorStop(0.9, 'rgba(0, 0, 0, 0.3)');     // Black Smoky Haze
+                    necroGradient.addColorStop(1, 'rgba(0, 0, 0, 0.0)');       // Transparent edge
+
+                    targetCtx.fillStyle = necroGradient;
+                    targetCtx.beginPath();
+                    targetCtx.arc(x, y, radius, 0, Math.PI * 2);
+                    targetCtx.fill();
+                    
+                    // Add a creeping smoky texture using lighter shade
+                    targetCtx.shadowBlur = 0;
+                    targetCtx.strokeStyle = 'rgba(170, 170, 170, 0.2)'; // Greyish smoke line
+                    targetCtx.lineWidth = radius * 0.02;
+                    targetCtx.lineCap = 'round';
+                    targetCtx.beginPath();
+                    // Draw a simple noise circle line
+                    for(let i=0; i < 360; i += 15) {
+                        const angle = i * Math.PI / 180;
+                        // Add slight randomness to the radius to make it look smoky/creeping
+                        const r = radius * (0.8 + Math.random() * 0.2); 
+                        if (i === 0) {
+                            targetCtx.moveTo(x + r * Math.cos(angle), y + r * Math.sin(angle));
+                        } else {
+                            targetCtx.lineTo(x + r * Math.cos(angle), y + r * Math.sin(angle));
+                        }
+                    }
+                    targetCtx.stroke();
+                    targetCtx.lineCap = 'butt'; // Reset cap
+                    break;
+
+                case 'aoe':
+                default:
+                    // Generic AoE: Simple red dashed circle, diffused fill
+                    targetCtx.strokeStyle = 'rgba(255, 0, 0, 0.7)';
+                    const aoeGradient = targetCtx.createRadialGradient(x, y, 0, x, y, radius);
+                    aoeGradient.addColorStop(0, 'rgba(255, 0, 0, 0.05)'); // Very light red center
+                    aoeGradient.addColorStop(1, 'rgba(255, 0, 0, 0.0)'); // Transparent edge
+                    targetCtx.fillStyle = aoeGradient; // Corrected typo in variable name here
+                    targetCtx.lineWidth = radius * 0.03;
+                    targetCtx.setLineDash([radius * 0.05, radius * 0.05]);
+                    targetCtx.beginPath();
+                    targetCtx.arc(x, y, radius, 0, Math.PI * 2);
+                    targetCtx.fill(); // Fill with the subtle gradient
+                    targetCtx.stroke();
+                    targetCtx.setLineDash([]); // Reset dash
+                    break;
+            }
+
+            targetCtx.restore(); // Restore the canvas state (resets globalAlpha, shadows, etc.)
+        }
+
+        /**
+         * Draws all stored effects on the canvas.
+         */
+        function drawEffects() {
+            if (dataPoints.length === 0) {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                return;
+            }
+
+            // Clear the canvas before redrawing all effects
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Scale factor for current display canvas
+            const pixelScale = canvas.width / 1000; 
+
+            dataPoints.forEach(point => drawEffect(point, ctx, pixelScale));
+        }
+
+        /**
+         * Adds a data point based on a mouse click.
+         */
+        function addDataPoint(event) {
+            if (baseImage.src.includes('placehold.co')) {
+                return;
+            }
+
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = event.clientX - rect.left;
+            const mouseY = event.clientY - rect.top;
+
+            // Normalize coordinates to a 0-1000 scale
+            const normalizedX = (mouseX / canvas.width) * 1000;
+            const normalizedY = (mouseY / canvas.height) * 1000;
+
+            // Get current selected effect and radius/opacity
+            const currentEffect = effectTypeSelector.value;
+            const currentRadius = parseInt(effectRadiusSlider.value); // Slider value 1-10
+            const currentOpacity = parseInt(effectOpacitySlider.value) / 100; // Slider value 0.1-1.0
+
+            dataPoints.push({ 
+                x: normalizedX, 
+                y: normalizedY, 
+                effectType: currentEffect,
+                radius: currentRadius, // Store the simple radius value 1-10
+                opacity: currentOpacity // Store the selected opacity
+            });
+
+            drawEffects();
+
+            clearButton.disabled = false;
+            downloadButton.disabled = false;
+        }
+
+        /**
+         * Creates a temporary canvas, draws the base image and the effects overlay,
+         * and triggers a download of the resulting composite image using original image dimensions.
+         */
+        function downloadEffectsMap() {
+            if (dataPoints.length === 0) return;
+
+            const originalWidth = baseImage.naturalWidth;
+            const originalHeight = baseImage.naturalHeight;
+
+            const tempCanvas = document.createElement('canvas');
+            const tempCtx = tempCanvas.getContext('2d');
+
+            // 2. Set temporary canvas dimensions to match the ORIGINAL image size
+            tempCanvas.width = originalWidth;
+            tempCanvas.height = originalHeight;
+
+            // 3. Draw the original image onto the temporary canvas
+            tempCtx.drawImage(baseImage, 0, 0, originalWidth, originalHeight);
+
+            // 4. Redraw the effects on the temporary canvas using high-resolution coordinates
+            // This is crucial to ensure the effects look sharp and detailed at the original image size.
+            const highResScale = originalWidth / 1000;
+
+            dataPoints.forEach(point => drawEffect(point, tempCtx, highResScale));
+            
+            // 5. Convert to data URL and trigger download
+            try {
+                const dataURL = tempCanvas.toDataURL('image/png');
+                const a = document.createElement('a');
+                a.href = dataURL;
+                a.download = 'dnd-battlemap-effects.png';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+            } catch (e) {
+                console.error("Error generating or downloading image:", e);
+                const msg = document.createElement('div');
+                msg.textContent = "Could not download image. Check console for details.";
+                msg.style.cssText = 'position: fixed; top: 20px; right: 20px; background: red; color: white; padding: 10px; border-radius: 5px; z-index: 1000;';
+                document.body.appendChild(msg);
+                setTimeout(() => document.body.removeChild(msg), 4000);
+            } finally {
+                 tempCanvas.remove();
+            }
+        }
+
+        // --- Event Listeners ---
+
+        imageUpload.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    baseImage.onload = () => {
+                        baseImage.style.width = '100%';
+                        baseImage.style.height = 'auto';
+
+                        imageContainer.classList.remove('hidden');
+                        placeholderMessage.classList.add('hidden');
+
+                        resizeCanvas();
+                        clearEffects(); 
+
+                        window.removeEventListener('resize', resizeCanvas); 
+                        window.addEventListener('resize', resizeCanvas);
+                    };
+                    baseImage.src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        canvas.addEventListener('click', addDataPoint);
+        clearButton.addEventListener('click', clearEffects);
+        downloadButton.addEventListener('click', downloadEffectsMap);
+
+        // Initial setup for the placeholder image dimensions
+        baseImage.onload = () => {
+            if (baseImage.src.includes('placehold.co')) {
+                imageContainer.classList.remove('hidden');
+                placeholderMessage.classList.remove('hidden');
+                resizeCanvas();
+            }
+        };
+
+        if (baseImage.complete) {
+            baseImage.onload();
+        }
+    </script>
+
+</body>
+</html>
